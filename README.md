@@ -1,6 +1,7 @@
 # QuadCopter-Library
-This code represents a quadcopter library for an Arduino based quadcopter. The code is still unfinished.
+This code represents a object-orientated quadcopter library for an Arduino based quadcopter.
 My hardware components are:
+
 (1) 1x Arduino MEGA ADK (same pinout as MEGA)
 
 (2) 1x Reely HT-5 TX/RX
