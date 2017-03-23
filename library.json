@@ -1,0 +1,9 @@
+{
+  "name": "QCLibrary-v1",
+  "keywords": "quadcopter, pid, esc, mpu6050, led, rx, battery, vector, quaternion, timer, interrupt",
+  "description": "This library contains predefined classes for an arduino based quadcopter.",
+  "url": "",
+  "include": "quadcopter",
+  "authors": [{ "name": "Rob Mertens" }],
+  "frameworks": "arduino"
+}
