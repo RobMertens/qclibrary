@@ -11,30 +11,35 @@ class MPU6050
   		/* Declarations *******************************************************/
   		
 		/* Constructors *******************************************************/
-		MPU6050(uint8_t);
-		MPU6050(uint8_t, uint8_t, uint8_t);
+		MPU6050(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
 
 		/* Setters ************************************************************/
-		void initialize(void);
-		void calibrate(void);
+		void initialize();
+		void calibrate();
 		
 		void setBias(vector*); 
-		void setRawGyroscope(vector*, vector*); 
-		void setRawAccelero(vector*);
-		void setQuaternion(quaternion*, vector*, vector*, float);
+		void setGyroscope(vector *, vector *); 
+		void setAccelero(vector *);
+		void setQuaternion(quaternion *, vector *, vector *, float);
 		
 		/* Getters ************************************************************/
-		uint8_t getAddress(void);
-		bool setScaleGyroscope(void);
-		bool setScaleAccelero(void);
-		bool getMovement(vector*, float);
+		static uint8_t getAddress();
+		bool setScaleGyroscope(uint8_t);
+		bool setScaleAccelero(uint8_t);
+		bool getMovement(vector *, float);
 		
   	private:
   		/* Declarations *******************************************************/
   		
-		uint8_t _address;
-		uint8_t _scaleGyroscope;
-		uint8_t _scaleAccelero;
+		static uint8_t _address;
+		static uint8_t _gyroscopeScale;
+		static uint8_t _acceleroScale;
+		
+		static uint8_t _pwrMgmtRegister;
+		static uint8_t _gyroscopeScaleRegister;
+		static uint8_t _acceleroScaleRegister;
+		static uint8_t _gyroscopeDataRegister;
+		static uint8_t _acceleroDataRegister;
 		
 };
 #endif
