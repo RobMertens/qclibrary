@@ -1,24 +1,20 @@
-#include <cores/interrupt.h>
-#include <test/timerInterrupt.h>
+#include <qclibrary.h>
 
-// LED
-#define LED_DDR			DDRB		// Data Direction Register for the LED.
-#define LED_PIN			PINB		// Data Input Register for the LED.
-#define LED_PINOUT		0x80		// Data Direction Register value (0b10000000).
-						// This is arduino pin 13 (PB7).
-#define LED_PORT 		PORTB		// Data Output Register for the LED.
+timer t(&TCCR1A, &TCNT1, &TIMSK1);
 
-// INTERRUPT
-#define INT_MASK		TIMSK
-#define INT_COMP		OCR0A
-#define INT_ENABLE		OCIE0A
-
-// 
-timerInterrupt ti = new timerInterrupt(INT_MASK, INT_COMP, INT_ENABLE, LED_PORT);
-ti::initialize();				// Init.
+// INIT
+void setup()
+{
+	Serial.begin(9600);
+	
+	t.initialize(0x00, 0x01);
+}
 
 // MAIN PROGRAM
-int main(void){;;}				// Do nothing. We are testing interrupts.
+void loop()
+{
+	Serial.println(t.getOverflow());
+}
 
 
 

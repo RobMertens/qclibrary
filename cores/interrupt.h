@@ -4,7 +4,7 @@
 #include <avr/io.h>
 
 /**
-*	interrupt.h 
+* interrupt.h 
 */
 class interrupt { 
 	public:

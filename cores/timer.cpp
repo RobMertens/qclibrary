@@ -1,39 +1,57 @@
 /******************************************************************************
- *	Quadcopter-Library-v1
- *  TIMER.CPP
+ * Quadcopter-Library-v1
+ * TIMER.CPP
  *  
- *	This file contains functions for the AVR-timers.
+ * This file contains functions for the AVR-timers.
  *
- *  @author 	Rob Mertens
- *  @version 	1.0.1 
- *  @date 	14/08/2016
+ * @author:	Rob Mertens
+ * @version: 	1.0.1 
+ * @date: 	14/08/2016
  ******************************************************************************/
 
 #include <timer.h>
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the timer.
+ *
+ * @param: tccr The timer control register.
+ * @param: tcnt The timer count register.
  ******************************************************************************/
-timer::timer(void)
+timer::timer(volatile uint8_t * tccr, volatile uint8_t * tcnt, volatile uint8_t * timsk)
 {
-
+	_tccr = tccr;
+	_tcnt = tcnt;
+	_timsk = timsk;
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the timer.
+ *
+ * @param: tccr The timer control register.
+ * @param: tcnt The timer count register.
  ******************************************************************************/
-timer::timer(volatile uint8_t tccr, volatile uint16_t tcnt)
+timer::timer(volatile uint8_t * tccr, volatile uint16_t * tcnt, volatile uint8_t * timsk)
 {
-	*_tccr = &tccr;
-	*_tcnt = &tcnt;
-
+	_tccr = tccr;
+	_tcnt = tcnt;
+	_timsk = timsk;
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the ESC-class. By making an object with this constructor
+ * all local variables are set together with the avr-timer.
+ ******************************************************************************/
+static void timer::initialize(uint8_t prescale, uint8_t mask)
+{
+	*_tccr = prescale;
+	*_timsk = mask;
+	
+	*_tcnt = 0x00;
+}
+
+/*******************************************************************************
+ * Constructor for the ESC-class. By making an object with this constructor
+ * all local variables are set together with the avr-timer.
  ******************************************************************************/
 static void timer::set(uint16_t value)
 {
@@ -41,46 +59,61 @@ static void timer::set(uint16_t value)
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the ESC-class. By making an object with this constructor
+ * all local variables are set together with the avr-timer.
  ******************************************************************************/
-static void timer::reset(void)
+static void timer::reset()
 {
 	*_tcnt = (uint16_t)0;
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the ESC-class. By making an object with this constructor
+ * all local variables are set together with the avr-timer.
  ******************************************************************************/
-static void setPrescaler(volatile uint8_t tccr)
+static void timer::prescaler(uint8_t value)
 {
-	*_tccr = &tccr;
+	*_tccr = value;
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the ESC-class. By making an object with this constructor
+ * all local variables are set together with the avr-timer.
  ******************************************************************************/
-uint16_t timer::getCount(void)
+uint16_t timer::getCount()
 {
 	return *_tcnt;
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the ESC-class. By making an object with this constructor
+ * all local variables are set together with the avr-timer.
  ******************************************************************************/
-uint16_t timer::getOverflow(void)
+uint16_t timer::getOverflow()
 {
 	return _overflow;
 }
 
 /*******************************************************************************
- * 	ISR for the timer class.
+ * ISR for the timer class.
  ******************************************************************************/
 virtual void timer::interruptServiceRoutine(void)
 {
 	_overflow++;
 }
+
+/*******************************************************************************
+ * Enable timer interrupts.
+ ******************************************************************************/
+virtual void timer::enable(void){}
+
+/*******************************************************************************
+ * Disable timer interrupts.
+ ******************************************************************************/
+virtual void timer::disable(void){}
+
+/*******************************************************************************
+ * Clear timer interrupts.
+ ******************************************************************************/
+virtual void timer::clear(void){}
  

@@ -2,23 +2,23 @@
 #define _QCLIBRARY_H_ 
 
 /*******************************************************************************
- *	Quadcopter-Library-v1
- *  QCLIBRARY.H
+ * Quadcopter-Library-v1
+ * QCLIBRARY.H
  *  
- *	This file includes all files for our quadcopter.
+ * This file includes all files for our quadcopter.
  *
- *  @author Rob Mertens
- *  @version 1.0.1 
- *	@date 14/08/2016
+ * @author:	Rob Mertens
+ * @version:	1.0.1 
+ * @date:	14/08/2016
  ******************************************************************************/
 
 // DEFINITIONS
-//#include <definitions.h>		//MODIFY THIS FILE.
+#include <definitions.h>		//MODIFY THIS FILE.
  
 // Cores
-//#include <cores/math.h>
+#include <cores/math.h>
 #include <cores/interrupt.h>
-//#include <cores/timer.h>
+#include <cores/timer.h>
 
 // Hardware
 //#include <hardware/RX.h>
@@ -27,9 +27,6 @@
 //#include <hardware/ESC.h>
 //#include <hardware/LED.h>
 //#include <hardware/BAT.h>
-
-// Tests
-#include <test/timerInterrupt.h>
 
 #endif
 
