@@ -79,8 +79,23 @@ static void timer::prescaler(uint8_t value)
 /*******************************************************************************
  * Constructor for the ESC-class. By making an object with this constructor
  * all local variables are set together with the avr-timer.
+ * 
+ * 
  ******************************************************************************/
 uint16_t timer::getCount()
+{
+	return *_tcnt;
+}
+
+/*******************************************************************************
+ * Method for obtaining the total summized count since the last reset. Thus
+ * overflows are accounted.
+ * 
+ * REMARK: This method only works if the timer interrupts with an timer_ovf_vect()
+ * 
+ * @return: _nonResetCount The count value since last reset.
+ ******************************************************************************/
+uint16_t timer::getNonResetCount()
 {
 	return *_tcnt;
 }
@@ -91,7 +106,7 @@ uint16_t timer::getCount()
  ******************************************************************************/
 uint16_t timer::getOverflow()
 {
-	return _overflow;
+	return _overflowCount;
 }
 
 /*******************************************************************************
@@ -99,7 +114,9 @@ uint16_t timer::getOverflow()
  ******************************************************************************/
 virtual void timer::interruptServiceRoutine(void)
 {
-	_overflow++;
+	//TODO::check which interrupt is active.
+	_overflowCount++;						// timer_ovf_vect()
+	_interruptCount++;						// timer_comp_vect()
 }
 
 /*******************************************************************************

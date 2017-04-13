@@ -12,7 +12,10 @@
  *
  * PLEASE NOTE: This class is based on arduino's which use a clock frequency 
  *		of 16Mhz. Other arduino's will NOT generate a 4000us signal.
- *
+ * 
+ * TODO::add number of motors.
+ * TODO::variable frequency and clock speed.
+ * 
  * In this class predefined registers are used. For each hardware-setup
  * these registers can be different. It is recommended to change the registers
  * in the DEFINE.h file.
@@ -26,31 +29,41 @@
 #include <ESC.h>
 
 /*******************************************************************************
- * Constructor for the ESC-class. By making an object with this constructor
- * all local variables are set together with the avr-timer. This constructor
- * is compatible for most ESC's which have a DEFAULT microsecond PMW-range of
- * minimum 1000us (motors off) and maximum 2000us (motors at maximum throttle).
+ * Constructor for the ESC-class.
  * 
- * @param:
- * @param:
- * @param:
- * @param:
- * @param:
- * @param:
+ * By making an object with this constructor all local variables are set together
+ * with the avr-timer (DEFAULT=TIMER1). This constructor is compatible for most
+ * ESC's which have a DEFAULT microsecond PMW-range of minimum 1000us (motors off)
+ * and maximum 2000us (motors at maximum throttle) or user specified.
+ * 
+ * @param: *ddr The Data Direction Register.
+ * @param: mask The Data Direction Register mask.
+ * @param: *pin The Port Input register.
+ * @param: *port The Port Output Register.
+ * @param: *tccr The Timer Count Control Register (DEFAULT=&TCCR1).
+ * @param: *tcnt The Timer Count Register (DEFAULT=&TCNT1).
+ * @param: *timsk The Timer Mask Register (DEFAULT=&TIMSK1).
+ * @param: minMicrosecond The zero throttle pulse length [µs] (DEFAULT=1000).
+ * @param: maxMicrosecond The full throttle pulse length [µs] (DEFAULT=2000).
  ******************************************************************************/
-ESC::ESC(volatile uint8_t * ddr, volatile uint8_t * pin, volatile uint8_t * port, uint8_t mask, int minMicrosecond=1000, int maxMicrosecond=2000)
+ESC::ESC(volatile uint8_t * ddr, uint8_t mask, volatile uint8_t * pin, volatile uint8_t * port, volatile uint8_t * tccr=&TCCR1, volatile uint16_t * tcnt=&TCNT1, volatile uint8_t * timsk=&TIMSK1, int minMicrosecond=1000, int maxMicrosecond=2000)
 {	
+	// IO.
 	_ddr  = &ddr;							// Put definitions in local variables.
 	_pin  = &pin;
 	_port = &port;
 
 	*_ddr |= mask;
 	
+	// ESC Timer.
+	_escTimer = timer(&tccr, &tcnt, &timsk)
+	
+	//
 	_HIGH = *_ddr;
 	_LOW  = *_ddr ^ 0xFF;
 
-	_minTicks = minMicrosecond/4 - 1;
-	_maxTicks = maxMicrosecond/4 - 1;
+	_MIN_TICKS = microseconds2Ticks(minMicrosecond);
+	_MAX_TICKS = microseconds2Ticks(maxMicrosecond);
 
 	for (uint8_t mask=0x01; mask<=0x80; mask<<=1)			// Loop through every bit in a byte.
 	{
@@ -68,19 +81,30 @@ ESC::ESC(volatile uint8_t * ddr, volatile uint8_t * pin, volatile uint8_t * port
 
 /*******************************************************************************
  * Method for initializing the timer-settings.
+ * The default is TIMER1 with no prescaler and timer overflow interrupt.
+ *
+ * @param: prescale The prescale mask value (DEFAULT=0x01).
+ * @param: mask The timsk mask value (DEFAULT=0x01).
  ******************************************************************************/
-void ESC::initialize()
+void ESC::arm(uint8_t prescale=0x01, uint8_t mask=0x01)
 {
-	TCCR0B |= (1 << CS11) | (1 << CS10); 				// Set up the 8-bit timer prescaler value 64.
+	_escTimer.initialize(prescale, mask)				// DEFAULT TIMER1:
+									// Set up the 16-bit timer prescaler value 0.
     									// Thus our timer resolution equals:
-    									// (absolute) = 64/16000000 = 4us
-    									// (relative) = 4/4000 = 0.1%
+    									// (absolute) = 1/16000000 = 0.0825µs
+    									// (relative) = 0.0825/4000 = negligible...
+	
+	_US2T = (1/1000000)/(prescale/16000000);			// ticks = (1 / desired frequency) / (prescaler / clock speed) - 1.
+									// TODO::variable frequency and clock speed.
 }
 
 /*******************************************************************************
  * Method for writing variable PWM-pulses in length to the ESC's.
+ *
+ * REMARK: This method takes 4000µs in time.
+ * TODO::use interrupts to do other things.
  *	
-  *@param: us1 The pulselength for ESC1 in microseconds.
+ * @param: us1 The pulselength for ESC1 in microseconds.
  * @param: us2 The pulselength for ESC2 in microseconds.
  * @param: us3 The pulselength for ESC3 in microseconds.
  * @param: us4 The pulselength for ESC4 in microseconds.
@@ -88,26 +112,19 @@ void ESC::initialize()
 void ESC::writeVariableSpeed(int us1, int us2, int us3, int us4)
 {
 	*_port |= _HIGH;						// Set ouput HIGH.
-	TCNT0 = 0; 							// Reset timer.
-	uint16_t timerOverflow = 0x0000;				// Private overflow word.
+	_escTimer.reset();						// Reset timer.
 	
-	int tck1 = microsecondsToTicks(us1);				// Transform microseconds to timer compatible ticks.
-	int tck2 = microsecondsToTicks(us2);
-	int tck3 = microsecondsToTicks(us3);
-	int tck4 = microsecondsToTicks(us4);
+	int tck1 = microseconds2Ticks(us1);				// Transform microseconds to timer compatible ticks.
+	int tck2 = microseconds2Ticks(us2);
+	int tck3 = microseconds2Ticks(us3);
+	int tck4 = microseconds2Ticks(us4);
 	
-	while((timerOverflow + TCNT0) < 999)
-	{
-		if(TIFR0 & 0x01)					// Overflow occured
-		{
-			timerOverflow += 0xFF;				// Add maximum timervalue to overflow word.
-			TIFR0 |= 0x01;					// Reset overflow bit.
-		}
-		
-		if((timerOverflow + TCNT0) >= tck1 && *_pin & _esc1)*_port &= (_esc1 ^ 0xFF);
-		if((timerOverflow + TCNT0) >= tck2 && *_pin & _esc2)*_port &= (_esc2 ^ 0xFF);
-		if((timerOverflow + TCNT0) >= tck3 && *_pin & _esc3)*_port &= (_esc3 ^ 0xFF);
-		if((timerOverflow + TCNT0) >= tck4 && *_pin & _esc4)*_port &= (_esc4 ^ 0xFF);
+	while((_escTimer.getNonResetCount()) < _MAX_TICKS)
+	{		
+		if((_escTimer.getNonResetCount()) >= tck1 && *_pin & _esc1){*_port &= (_esc1 ^ 0xFF);}
+		if((_escTimer.getNonResetCount()) >= tck2 && *_pin & _esc2){*_port &= (_esc2 ^ 0xFF);}
+		if((_escTimer.getNonResetCount()) >= tck3 && *_pin & _esc3){*_port &= (_esc3 ^ 0xFF);}
+		if((_escTimer.getNonResetCount()) >= tck4 && *_pin & _esc4){*_port &= (_esc4 ^ 0xFF);}
 	}
 }
 
@@ -122,7 +139,7 @@ void ESC::writeMinimumSpeed()
 	
 	int tck = _minTicks;						// High pulse takes minimum microseconds.
 	
-	while((timerOverflow + TCNT0) < 999)				// Total time takes 4000 microseconds.
+	while((timerOverflow + TCNT0) < _MAX_TICKS)			// Total time takes 4000 microseconds.
 	{		
 		if(TIFR0 & 0x01)					// Overflow occured
 		{
@@ -144,7 +161,7 @@ void ESC::writeMaximumSpeed()
 	
 	int tck = _maxTicks;						// High pulse takes maximum microseconds.
 	
-	while((timerOverflow + TCNT0) < 999)				// Total time takes 4000 microseconds.
+	while((timerOverflow + TCNT0) < _MAX_TICKS)			// Total time takes 4000 microseconds.
 	{		
 		if(TIFR0 & 0x01)					// Overflow occured
 		{
@@ -163,13 +180,13 @@ void ESC::writeMaximumSpeed()
  * @param: us The length of the PWM-pulse in microseconds.
  * @return: tck The lenght of the PWM-pulse in timer compatible ticks.
  ******************************************************************************/
-int ESC::microsecondsToTicks(int us)
+int ESC::microseconds2Ticks(int us)
 {
 	int tck;
 	
-	tck = us/4 - 1;							// ticks = (1 / desired frequency) / (prescaler / clock speed) - 1.
-	if(tck > _maxTicks)tck = _maxTicks;
-	else if(tck < _minTicks)tck = _minTicks;
+	tck = us*_us2t - 1;							// ticks = (1 / desired frequency) / (prescaler / clock speed) - 1.
+	if(tck > _maxTicks){tck = _maxTicks;}
+	else if(tck < _minTicks){tck = _minTicks;}
 	
 	return tck;
 }

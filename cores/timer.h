@@ -109,6 +109,8 @@ class timer : public interrupt::handler
 	private:
 		// Registers.
 		volatile uint16_t * _tcnt;			// TIMER COUNT
+		volatile uint8_t  * _tcnth;			// TIMER COUNT HIGH BYTE
+		volatile uint8_t  * _tcntl;			// TIMER COUNT LOW BYTE
 		volatile uint8_t  * _tccr;			// PRESCALER
 		volatile uint8_t  * _timsk;			// Timer Interrupt Mask register.
 		volatile uint8_t  * _tifr0;			// Timer Interrupt Flag Register for timer0, timer1, timer2.
@@ -116,8 +118,9 @@ class timer : public interrupt::handler
 		volatile uint8_t  * _tifr2;			// Timer Interrupt Flag Register for timer4, timer5.
 		
 		// Overflow.		
-		uint16_t _overflow;
-		
+		uint16_t _interruptCount;
+		uint16_t _overflowCount;			// TODO::remember number of overflows.
+		uint16_t _nonResetCount;
 		
 		
 };
