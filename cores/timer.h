@@ -107,6 +107,9 @@ class timer : public interrupt::handler
 		
 		
 	private:
+		// Vars.
+		int _bitness;					// Timer bitness (8/16-bit)
+		
 		// Registers.
 		volatile uint16_t * _tcnt;			// TIMER COUNT
 		volatile uint8_t  * _tcnth;			// TIMER COUNT HIGH BYTE

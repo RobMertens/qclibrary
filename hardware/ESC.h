@@ -35,10 +35,10 @@ class ESC
 	  	static uint8_t _HIGH;				// Byte setting OUTPUT HIGH (e.g.: |= 0b00001111).
 	  	static uint8_t _LOW;				// Byte setting OUTPUT LOW  (e.g.: &= 0b11110000).
 	  	
-	  	static int _minTicks;					// Minimum timerticks range.
-	  	static int _maxTicks;					// Maximum timerticks range.
+	  	static int _minTicks;				// Minimum timerticks range.
+	  	static int _maxTicks;				// Maximum timerticks range.
 		
-		static int _US2T; 		
+		static int _us2t; 		
 		
   		//Getters ********************************************************************	
   		int microseconds2Ticks(int);

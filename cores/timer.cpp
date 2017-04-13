@@ -12,28 +12,48 @@
 #include <timer.h>
 
 /*******************************************************************************
- * Constructor for the timer.
+ * Constructor for a 8-bit timer, e.g.: timer0.
  *
  * @param: tccr The timer control register.
  * @param: tcnt The timer count register.
  ******************************************************************************/
 timer::timer(volatile uint8_t * tccr, volatile uint8_t * tcnt, volatile uint8_t * timsk)
 {
+	// 8-bit.
+	_bitness = 8;
+	
+	// Timer Count Control Register.
 	_tccr = tccr;
+	
+	// Timer Count register.
 	_tcnt = tcnt;
+	UNUSED(_tcnth);
+	UNUSED(_tcntl);
+	
+	// Timer Interrupt Mask register.
 	_timsk = timsk;
 }
 
 /*******************************************************************************
- * Constructor for the timer.
+ * Constructor for a 16-bit timer, e.g.: timer1.
  *
  * @param: tccr The timer control register.
  * @param: tcnt The timer count register.
  ******************************************************************************/
-timer::timer(volatile uint8_t * tccr, volatile uint16_t * tcnt, volatile uint8_t * timsk)
+timer::timer(volatile uint8_t * tccr, volatile uint8_t * tcnth, volatile uint8_t * tcntl, volatile uint8_t * timsk)
 {
+	// 16-bit.
+	_bitness = 16;
+	
+	// Timer Count Control Register.
 	_tccr = tccr;
-	_tcnt = tcnt;
+	
+	// Timer Count register.
+	UNUSED(_tcnt);
+	_tcnth = tcnth;
+	_tcntl = tcntl;
+	
+	// Timer Interrupt Mask register.
 	_timsk = timsk;
 }
 
@@ -53,9 +73,18 @@ static void timer::initialize(uint8_t prescale, uint8_t mask)
  * Constructor for the ESC-class. By making an object with this constructor
  * all local variables are set together with the avr-timer.
  ******************************************************************************/
-static void timer::set(uint16_t value)
+static void timer::set(uint8_t value)
 {
-	*_tcnt = value;
+	if(_bitness == 8)
+	{
+		*_tcnt = value;
+	}
+	else
+	{
+		//TODO::wrong notation?!
+		*_tcnth = 0x00;
+		*_tcntl = 0x00;
+	}
 }
 
 /*******************************************************************************
@@ -64,7 +93,16 @@ static void timer::set(uint16_t value)
  ******************************************************************************/
 static void timer::reset()
 {
-	*_tcnt = (uint16_t)0;
+	if(_bitness == 8)
+	{
+		*_tcnt = 0x00;
+	}
+	else
+	{
+		//TODO::wrong notation?!
+		*_tcnth = 0x00;
+		*_tcntl = 0x00;
+	}
 }
 
 /*******************************************************************************
@@ -82,7 +120,7 @@ static void timer::prescaler(uint8_t value)
  * 
  * 
  ******************************************************************************/
-uint16_t timer::getCount()
+uint8_t timer::getCount()
 {
 	return *_tcnt;
 }
@@ -97,7 +135,9 @@ uint16_t timer::getCount()
  ******************************************************************************/
 uint16_t timer::getNonResetCount()
 {
-	return *_tcnt;
+	//TODO::calculations.
+	
+	return _nonResetCount;
 }
 
 /*******************************************************************************

@@ -62,8 +62,8 @@ ESC::ESC(volatile uint8_t * ddr, uint8_t mask, volatile uint8_t * pin, volatile 
 	_HIGH = *_ddr;
 	_LOW  = *_ddr ^ 0xFF;
 
-	_MIN_TICKS = microseconds2Ticks(minMicrosecond);
-	_MAX_TICKS = microseconds2Ticks(maxMicrosecond);
+	_minTicks = microseconds2Ticks(minMicrosecond);
+	_maxTicks = microseconds2Ticks(maxMicrosecond);
 
 	for (uint8_t mask=0x01; mask<=0x80; mask<<=1)			// Loop through every bit in a byte.
 	{
@@ -88,13 +88,15 @@ ESC::ESC(volatile uint8_t * ddr, uint8_t mask, volatile uint8_t * pin, volatile 
  ******************************************************************************/
 void ESC::arm(uint8_t prescale=0x01, uint8_t mask=0x01)
 {
+	// TODO::Asking a prescale and timsk here is odd.
+	//	 Autocomputation timer in function of timer length (8/16-bit).
 	_escTimer.initialize(prescale, mask)				// DEFAULT TIMER1:
 									// Set up the 16-bit timer prescaler value 0.
     									// Thus our timer resolution equals:
     									// (absolute) = 1/16000000 = 0.0825µs
     									// (relative) = 0.0825/4000 = negligible...
 	
-	_US2T = (1/1000000)/(prescale/16000000);			// ticks = (1 / desired frequency) / (prescaler / clock speed) - 1.
+	_us2t = (1/1000000)/(prescale/16000000);			// ticks = (1 / desired frequency) / (prescaler / clock speed) - 1.
 									// TODO::variable frequency and clock speed.
 }
 
@@ -119,7 +121,7 @@ void ESC::writeVariableSpeed(int us1, int us2, int us3, int us4)
 	int tck3 = microseconds2Ticks(us3);
 	int tck4 = microseconds2Ticks(us4);
 	
-	while((_escTimer.getNonResetCount()) < _MAX_TICKS)
+	while((_escTimer.getNonResetCount()) < _maxTicks)
 	{		
 		if((_escTimer.getNonResetCount()) >= tck1 && *_pin & _esc1){*_port &= (_esc1 ^ 0xFF);}
 		if((_escTimer.getNonResetCount()) >= tck2 && *_pin & _esc2){*_port &= (_esc2 ^ 0xFF);}
@@ -139,7 +141,7 @@ void ESC::writeMinimumSpeed()
 	
 	int tck = _minTicks;						// High pulse takes minimum microseconds.
 	
-	while((timerOverflow + TCNT0) < _MAX_TICKS)			// Total time takes 4000 microseconds.
+	while((timerOverflow + TCNT0) < _maxTicks)			// Total time takes 4000 microseconds.
 	{		
 		if(TIFR0 & 0x01)					// Overflow occured
 		{
@@ -161,7 +163,7 @@ void ESC::writeMaximumSpeed()
 	
 	int tck = _maxTicks;						// High pulse takes maximum microseconds.
 	
-	while((timerOverflow + TCNT0) < _MAX_TICKS)			// Total time takes 4000 microseconds.
+	while((timerOverflow + TCNT0) < _maxTicks)			// Total time takes 4000 microseconds.
 	{		
 		if(TIFR0 & 0x01)					// Overflow occured
 		{
