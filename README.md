@@ -1,9 +1,8 @@
 # /* UNDER CONSTRUCTION */
 Version 1.1.1 is still under construction.
-The next file contains working code in one sketch:
-
-`examples/qctest/qctest.ino`
 
 ##
 
-Author: Rob Mertens
+_@author:_ Rob Mertens
+_@date:_ 14/04/2017
+_@version:_ -1.-1.-1
