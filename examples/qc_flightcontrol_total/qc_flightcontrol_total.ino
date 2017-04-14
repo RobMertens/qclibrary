@@ -42,10 +42,7 @@ unsigned long rxChan2;
 unsigned long rxChan3;
 unsigned long rxChan4;
 
-bool rxMem1;
-bool rxMem2;
-bool rxMem3;
-bool rxMem4;
+uint8_t rxMem;
 
 uint16_t rxIn1;
 uint16_t rxIn2;
@@ -332,43 +329,43 @@ ISR(PCINT0_vect)
     rxChan1 = micros();
   }
   else if(recChannel1 == 1 && !(PINB & B00000001)){
-    recChannel1 = 0;
-    recInput1 = 1.3 * (micros() - recCounter1) - 600;
+    rxMem &= 0xFE;
+    rxIn1 = 1.3 * (micros() - rxChan1) - 600;
   }
   
   //Receiver channel 2.
-  if(recChannel2 == 0 && PINB & B00000010 ){
-    recChannel2 = 1;
-    recCounter2 = micros();
+  if((rxMem & 0x02 == 0x00) && PINB & B00000010 ){
+    rxMem |= 0x02;
+    rxChan2 = micros();
   }
   else if(recChannel2 == 1 && !(PINB & B00000010)){
-    recChannel2 = 0;
-    recInput2 = 1.3 * (micros() - recCounter2) - 600;
+    rxMem &= 0xFD;
+    rxIn2 = 1.3 * (micros() - rxChan2) - 600;
   }
   
   //Receiver channel 3.
-  if(recChannel3 == 0 && PINB & B00000100 ){
-    recChannel3 = 1;
-    recCounter3 = micros();
+  if((rxMem & 0x04 == 0x00) && PINB & B00000100 ){
+    rxMem |= 0x04;
+    rxChan3 = micros();
   }
   else if(recChannel3 == 1 && !(PINB & B00000100)){
-    recChannel3 = 0;
-    recInput3 = 1.3 * (micros() - recCounter3) - 600;
+    rxMem &= 0xFB;
+    rxIn3 = 1.3 * (micros() - rxChan3) - 600;
   }
   
   //Receiver channel 4.
-  if(recChannel4 == 0 && PINB & B00001000 ){
-    recChannel4 = 1;
-    recCounter4 = micros();
+  if((rxMem & 0x08 == 0x00) == 0 && PINB & B00001000 ){
+    rxMem &= 0x08;
+    rxChan4 = micros();
   }
   else if(recChannel4 == 1 && !(PINB & B00001000)){
-    recChannel4 = 0;
-    recInput4 = 1.3 * (micros() - recCounter4) - 600;
+    rxMem &= 0xF7;
+    rxIn4 = 1.3 * (micros() - rxChan4) - 600;
   }
 }
 
 /**
- * TODO::Must be class to avoid usage memory twice...
+ * TODO::make pointer for dynamical memory storage.
  */
 vector control(vector vIn, vector vDes, float kp, float ki, float kd, float limit, float t)
 {
