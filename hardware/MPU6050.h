@@ -1,7 +1,6 @@
 #ifndef _MPU6050_H_
 #define _MPU6050_H_
 
-#include <stdint.h>
 #include <Wire.h>
 
 class MPU6050

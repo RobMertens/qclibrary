@@ -13,20 +13,18 @@
  ******************************************************************************/
 
 // DEFINITIONS
-#include <definitions.h>		//MODIFY THIS FILE.
+//#include <definitions.h>		//MODIFY THIS FILE.
  
 // Cores
 #include <cores/math.h>
-#include <cores/interrupt.h>
-#include <cores/timer.h>
 
 // Hardware
-//#include <hardware/RX.h>
-//#include <hardware/MPU6050.h>
-//#include <hardware/PID.h>
-//#include <hardware/ESC.h>
-//#include <hardware/LED.h>
-//#include <hardware/BAT.h>
+#include <hardware/RX.h>
+#include <hardware/MPU6050.h>
+#include <hardware/PID.h>
+#include <hardware/ESC.h>
+#include <hardware/LED.h>
+#include <hardware/BAT.h>
 
 #endif
 
