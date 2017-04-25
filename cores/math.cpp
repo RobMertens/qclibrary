@@ -91,6 +91,16 @@ vector vector::multiply(float s)
 }
 
 /*******************************************************************************
+ * Method for calculating the vector magnitude.
+ * 
+ * @return m The magnitude float.
+ ******************************************************************************/
+float vector::mag()
+{
+	return sqrt(x*x + y*y + z*z);
+}
+
+/*******************************************************************************
  * Method for calculating the dot product of the instance with another vector instance.
  * 
  * @param v The operand vector.
@@ -112,16 +122,6 @@ vector vector::cross(vector v)
 	return vector(y*v.z - z*v.y,
 		      z*v.x - x*v.z,
 		      x*v.y - y*v.x);
-}
-
-/*******************************************************************************
- * Method for calculating the vector magnitude.
- * 
- * @return m The magnitude float.
- ******************************************************************************/
-float vector::mag()
-{
-	return sqrt(x*x + y*y + z*z);
 }
 
 /*******************************************************************************
@@ -148,7 +148,7 @@ quaternion::quaternion(float a, vector e)
 	x = (e.x)*sin(0.5*a);
 	y = (e.y)*sin(0.5*a);
 	z = (e.z)*sin(0.5*a);
-	m = getMagnitude();
+	m = mag();
 }
 
 /*******************************************************************************
@@ -166,6 +166,17 @@ quaternion::quaternion(float w, float x, float y, float z)
 	y = y;
 	z = z;
 	m = mag();
+}
+
+/*******************************************************************************
+ * Method for calculating the magnitude.
+ * 
+ * @return m The quaternion magnitude.
+
+ ******************************************************************************/
+float quaternion::mag()
+{
+	return sqrt(w*w + x*x + y*y + z*z);
 }
 
 /*******************************************************************************
@@ -278,14 +289,4 @@ vector quaternion::q2euler()
 	return vector(atan2(2*(w*x + y*z), w*w - x*x - y*y + z*z),
 		      asin(2*(w*y - x*z)),
 		      atan2(2*(x*y + w*z), w*w + x*x - y*y - z*z));
-}
-
-/*******************************************************************************
- * Method for calculating the magnitude.
- * 
- * @return m The quaternion magnitude.
- ******************************************************************************/
-float quaternion::mag()
-{
-	return sqrt(w*w + x*x + y*y + z*z);
 }

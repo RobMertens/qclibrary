@@ -1,7 +1,7 @@
 #ifndef _RX_H_
 #define _RX_H_
 
-#include <stdint.h>
+#include <timer8.h>
 
 extern "C" void PCINT0_vect(void) __attribute__ ((signal));
 extern "C" void PCINT1_vect(void) __attribute__ ((signal));
@@ -14,29 +14,22 @@ class RX : public interrupt::handler
   	public:
 
   	//Constructors ***************************************************************
-    RX(void);
+    	RX(volatile uint8_t *, volatile uint8_t *, uint8_t, uint8_t);
     
-    //Setters ********************************************************************
-    void initialize(void);
+    	//Setters ********************************************************************
+   	void initialize(void);
     
-    virtual void interruptServiceRoutine(void);
+    	virtual void interruptServiceRoutine(void);
 	virtual void enable(void);
 	virtual void disable(void);
 	virtual void clear(void);
-	
-	friend void PCINT0_vect(void);
-	#if defined(PCINT1_vect)
-	friend void PCINT1_vect(void);
-	#endif
-	#if defined(PCINT2_vect)
-	friend void PCINT2_vect(void);
-	#endif
-	#if defined(PCINT3_vect)
-	friend void PCINT3_vect(void);
-	#endif
     
-    //Getters ********************************************************************
-  
+    	//Getters ********************************************************************
+	uint8_t getThrottleChannel();
+	uint8_t getPitchChannel();
+	uint8_t getRollChannel();
+	uint8_t getYawChannel();
+	
 	private:  
 		
 	volatile uint8_t * _pin;
@@ -54,9 +47,23 @@ class RX : public interrupt::handler
 	volatile uint16_t _channel3;
 	volatile uint16_t _channel4;
 	
+	static timer8 * _t2[4];
+	
 	volatile uint8_t _lastChannel;
 	
-	volatile uint16_t _overflow;				// Variable for storing the number of occured overflows.
+	// Static self.
+	static RX * _RX[4];
+	
+	friend void PCINT0_vect(void);
+	#if defined(PCINT1_vect)
+	friend void PCINT1_vect(void);
+	#endif
+	#if defined(PCINT2_vect)
+	friend void PCINT2_vect(void);
+	#endif
+	#if defined(PCINT3_vect)
+	friend void PCINT3_vect(void);
+	#endif
 	
 	
 };

@@ -1,131 +1,212 @@
 /******************************************************************************
- *	Quadcopter-Library-v1
- *  RX.cpp
+ * Quadcopter-Library-v1
+ * RX.cpp
  *  
- *	This file contains predefined functions for the ESC-class. These functions
- *	serve for driving the motors of the quadcopter. They do this by writing
- *	PWM-signals to the electronic speed controllers (ESC's). Every PWM-signal
- *	takes about 4000 microseconds which directly gives us the refreshrate of 
- * 	the controller:
+ * This file contains functions for the receiver (RX). The signals from the
+ * transmitter are measured based on pin change interrupts.
  *
- *	refreshrate = 1/4000 = 250 Hz.
+ * TODO::transmitter modes.
+ * TODO::channel mapping functions.
+ * TODO::calibration functions.
+ * TODO::duty cycle calculation.
+ * TODO::channel 5 possibility.
  *
- *	In this class predefined registers are used. For each hardware-setup
- *	these registers can be different. It is recommended to change the registers
- *	in the DEFINE.h file.
- *
- *  @author Rob Mertens
- *  @version 1.0.1 14/08/2016
+ * @author Rob Mertens
+ * @version 1.1.1 14/08/2016
  ******************************************************************************/
 
-#include <avr/io.h>
 #include <RX.h>
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Constructor for the ESC-class. By making an object with this constructor
+ * all local variables are set together with the avr-timer.
  ******************************************************************************/
-RX::RX(void)
+RX::RX(volatile uint8_t * pin, volatile uint8_t pcmsk, uint8_t pcint, uint8_t pcie)
 {	
-	_pin	= &RX_PIN;								// Pass trough the Pin Input Register to local variable.
-	_pcmsk 	= &RX_PCMSK;							// Pass trough the Pin Change Mask Register to local variable.
+	_pin	= pin;								// Pass trough the Pin Input Register to local variable.
+	_pcmsk 	= pcmsk;							// Pass trough the Pin Change Mask Register to local variable.
 	
-	_pcint	= RX_PCINT;								// Which Pin Change Interrupt Pins are used.
-	_pcie	= RX_PCIE;								//
+	_pcint	= pcint;							// Which Pin Change Interrupt Pins are used.
+	_pcie	= pcie;								//
 	
-	_overflow = 0x0000;
+	_t2 	= timer8(t_alias::T2);						// TIMER2.
 	
-	for (uint8_t mask=0x01; mask<=0x80; mask<<=1)	// Loop for determining and splitting the Pin Change Interrupt Pins in different bytes.
-    {
-    	int n = 0;
-    	if(_pcint & mask)
+	for (uint8_t mask=0x01; mask<=0x80; mask<<=1)				// Loop for determining and splitting the Pin Change Interrupt Pins in different bytes.
     	{
-    		n++;
-    		if(n==1)_ch1 |= mask;
-    		if(n==2)_ch2 |= mask;
-    		if(n==3)_ch3 |= mask;
-    		if(n==4)_ch4 |= mask;
-    	} 
-    }
+    		int n = 0;
+    		if(_pcint & mask)
+    		{
+    			n++;
+    			if(n==1)_ch1 |= mask;
+    			if(n==2)_ch2 |= mask;
+    			if(n==3)_ch3 |= mask;
+    			if(n==4)_ch4 |= mask;
+    		} 
+	}
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Method for initializing the receiver.
  ******************************************************************************/
 void RX::initialize(void)
 {
-	cli();											// Disable interrupts before changing the registers.
-	PCICR	|= _pcie;								// Set PCICR to enable PCMSKx scan.
-	*_pcmsk |= _pcint;								// Set PCINT pins in PCMSKx.
-	sei();											// Enable interrupts.
+	cli();									// Disable interrupts before changing the registers.
+	PCICR	|= _pcie;							// Set PCICR to enable PCMSKx scan.
+	*_pcmsk |= _pcint;							// Set PCINT pins in PCMSKx.
+	sei();									// Enable interrupts.
 	
-	TCCR1B |= ((1 << CS11) | (1 << CS10)); 			// Set up the 16-bit timer prescaler value 64.
-													// Maximum possible time for one timer run can be calculated.
-													// (maxmicroseconds) = (2^16 - 1) * 4 = 262140us
-													// Per overflow flag the overflow word stores one timer value.
-													// Maximum possible time with overflows can be calculated.
-													// (maxmicroseconds) = (2^16 - 1 + 1) * 262140us = 4h46m46s
+	_t2.setMode(t_mode::NORMAL, t_interrupt::OVF);				// Set up the 8-bit timer prescaler value 64.
+	_t2.setPrescaler(1); 							// Maximum possible time for one timer run can be calculated.
+	_t2.reset();								// (timer_max) = (2^8 - 1) * (prescale / 16M) = 15,9375us
+										// Per overflow flag the overflow word stores one timer value.
+										// Maximum possible time with overflows can be calculated.
+										// (ovf_max) = (2^32) * 15,9375us = 68451s = 19h00m51s
+										// The drone will never fly 19 hours, so OK.
 }
 
 /*******************************************************************************
- * 	Constructor for the ESC-class. By making an object with this constructor
- *	all local variables are set together with the avr-timer.
+ * Method for initializing the receiver.
  ******************************************************************************/
-virtual void RX::interruptServiceRoutine(void)
+uint8_t getThrottleChannel(uint8_t channel)
 {
-	if(TIFR1 & 0x01) 				// If timer has overflown add an overflow and reset the TOV1-bit.
-	{
-		_overflow += 0xFF;
-		TIFR1 |= 0x01;
-	}
+	return _channel1;
+}
+
+/*******************************************************************************
+ * Method for initializing the receiver.
+ ******************************************************************************/
+uint8_t getPitchChannel(uint8_t channel)
+{
+	return _channel3;
+}
+
+/*******************************************************************************
+ * Method for initializing the receiver.
+ ******************************************************************************/
+uint8_t getRollChannel(uint8_t channel)
+{
+	return _channel4;
+}
+
+/*******************************************************************************
+ * Method for initializing the receiver.
+ ******************************************************************************/
+uint8_t getYawChannel(uint8_t channel)
+{
+	return _channel2;
+}
+
+/*******************************************************************************
+ * Method for initializing the receiver.
+ ******************************************************************************/
+uint8_t getExtraChannel(uint8_t channel)
+{
+	//TODO::
 	
-	if(!(_lastChannel & _ch1) && *_pin & _ch1)
+	return 0x00;
+}
+
+/*******************************************************************************
+ * ISR for the receiver class.
+ ******************************************************************************/
+void RX::interruptServiceRoutine(void)
+{	
+	if(!(_lastChannel & _ch1) and *_pin & _ch1)
 	{
-		_channel1 = (TCNT1 + _overflow);
+		_channel1 = t2.getNonResetCount();
 		_lastChannel |= _ch1;
 	}
-	else if(_lastChannel & _ch1 && !(*_pin & _ch1))
+	else if(_lastChannel & _ch1 and !(*_pin & _ch1))
 	{
-		_channel1 -= (TCNT1 + _overflow);
+		_channel1 -= t2.getNonResetCount();
 		_lastChannel &= (_ch1 ^ 0xFF);
 	}
 	
-	if(!(_lastChannel & _ch2) && *_pin & _ch2)
+	if(!(_lastChannel & _ch2) and *_pin & _ch2)
 	{
-		_channel2  = (TCNT1 + _overflow);
+		_channel2  = t2.getNonResetCount();
 		_lastChannel |= _ch2;
 	}
-	else if(_lastChannel & _ch2 && !(*_pin & _ch2))
+	else if(_lastChannel & _ch2 and !(*_pin & _ch2))
 	{
-		_channel2 -= (TCNT1 + _overflow);
+		_channel2 -= t2.getNonResetCount();
 		_lastChannel &= (_ch2 ^ 0xFF);
 	}
 	
-	if(!(_lastChannel & _ch3) && *_pin & _ch3)
+	if(!(_lastChannel & _ch3) and *_pin & _ch3)
 	{
-		_channel3  = (TCNT1 + _overflow);
+		_channel3  = t2.getNonResetCount();
 		_lastChannel |= _ch3;
 	}
-	else if(_lastChannel & _ch3 && !(*_pin & _ch3))
+	else if(_lastChannel & _ch3 and !(*_pin & _ch3))
 	{
-		_channel3 -= (TCNT1 + _overflow);
+		_channel3 -= t2.getNonResetCount();
 		_lastChannel &= (_ch3 ^ 0xFF);
 	}
 	
-	if(!(_lastChannel & _ch4) && *_pin & _ch4)
+	if(!(_lastChannel & _ch4) and *_pin & _ch4)
 	{
-		_channel4  = (TCNT1 + _overflow);
+		_channel4  = t2.getNonResetCount();
 		_lastChannel |= _ch4;
 	}
-	else if(_lastChannel & _ch4 && !(*_pin & _ch4))
-	{	_channel4 -= (TCNT1 + _overflow);
+	else if(_lastChannel & _ch4 and !(*_pin & _ch4))
+	{	_channel4 -= t2.getNonResetCount();
 		_lastChannel &= (_ch4 ^ 0xFF);
 	}
-	
-	if(!(_lastChannel & _pcint))	// Not necessary since we have 4h46m46s of time.
-	{
-		TCNT1 = 0;
-		_overflow = 0x0000;
-	}
 }
+
+/*******************************************************************************
+ * Enable pinchange interrupts.
+ ******************************************************************************/
+void RX::enable(void)
+{
+	//TODO::
+}
+
+/*******************************************************************************
+ * Disable pinchange interrupts.
+ ******************************************************************************/
+void RX::disable(void)
+{
+	//TODO::	
+}
+
+/*******************************************************************************
+ * Clear pinchange interrupts.
+ ******************************************************************************/
+void RX::clear(void)
+{
+	//TODO::
+}
+
+/*******************************************************************************
+ * Global forward declaration.
+ ******************************************************************************/
+RX * RX::_RX[4] = {};
+
+/*******************************************************************************
+ * _vector__x -> ISR().
+ * 
+ * TODO::different avrs.
+ * 
+ * Call from self.
+ ******************************************************************************/
+#define RX_ISR(p)								\
+ISR(PCINT ## p ## _vect)							\
+{										\
+	if(RX::_RX[p])RX::_RX[p] -> interruptServiceRoutine();			\
+}
+
+#if defined(PCINT0_vect)
+RX_ISR(0)
+#endif
+#if defined(PCINT1_vect)
+RX_ISR(1)
+#endif
+#if defined(PCINT2_vect)
+RX_ISR(2)
+#endif
+#if defined(PCINT3_vect)
+RX_ISR(3)
+#endif
+

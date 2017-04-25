@@ -1,14 +1,13 @@
 #ifndef _ESC_H_
 #define _ESC_H_
 
-#include <stdint.h>
-#include <cores/timer.h>
+#include <timer16.h>
 
 class ESC
 {
 	public:
 		//Constructors ***************************************************************
-		ESC(volatile uint8_t *, uint8_t, volatile uint8_t *, volatile uint8_t *, volatile uint8_t *, volatile uint16_t *, volatile uint8_t *, int, int);
+		ESC(volatile uint8_t *, uint8_t, volatile uint8_t *, volatile uint8_t *, uint16_t, uint16_t);
 
 		//Setters ********************************************************************
 		void arm();
@@ -22,10 +21,8 @@ class ESC
 	  	volatile uint8_t * _pin;			// Pin Input Register for reading.
 	  	volatile uint8_t * _port;			// Pin Output Register for writing.
 	  	
-		timer _escTimer;				// 16-bit timer.
-		//volatile uint8_t * _tccr;			// Timer registers not as private variable for ESC-class.
-		//volatile uint16_t * _tcnt;
-		//volatile uint8_t * _timsk;
+		timer16 _t1;					// 16-bit timer.
+		timer16 _t3;
 		
 	  	uint8_t _esc1;					// Byte containing OUTPUT esc1 (e.g.: 0b00000001).
 	  	uint8_t _esc2;					// Byte containing OUTPUT esc2 (e.g.: 0b00000010).

@@ -11,7 +11,7 @@
  *
  * @author:	Rob Mertens
  * @date:	14/08/2016
- * @version:	1.0.1
+ * @version:	1.1.1
  ******************************************************************************/
 
 #include <BAT.h>
@@ -25,19 +25,12 @@ BAT::BAT(void)
 }
 
 /*******************************************************************************
- * Method for measuring the battery level.
- ******************************************************************************/
-void BAT::measureBatteryLevel()
-{
-	//TODO::read out the analogue signal and map this to a percentage.
-	//	This relation is non-linear (see discharge curve LiPo).
-}
-
-/*******************************************************************************
  * Constructor for the LED-class.
  ******************************************************************************/
 uint8_t BAT::getBatteryLevel()
 {
+	//TODO::measurement.
+		
 	return _level;
 }
 

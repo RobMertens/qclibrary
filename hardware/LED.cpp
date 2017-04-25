@@ -1,62 +1,59 @@
 /******************************************************************************
- *	Quadcopter-Library-v1
- *  LED.cpp
+ * Quadcopter-Library-v1
+ * LED.cpp
  *  
- *	This file contains predefined functions for the LED-class. These functions
- *	are very basic and just made for integraty.
- *
- *	In this class predefined registers are used. For each hardware-setup
- *	these registers can be different. It is recommended to change the registers
- *	in the DEFINE.h file.
- *
- *  @author Rob Mertens
- *  @version 1.0.1 14/08/2016
+ * This file contains predefined functions for the LED-class.
+ * 
+ * TODO::support multiple LED's.
+ * 
+ * @author Rob Mertens
+ * @version 1.0.1 14/08/2016
  ******************************************************************************/
 
 #include <LED.h>
 
 /*******************************************************************************
- * 	Constructor for the LED-class.
+ * Constructor for the LED-class.
  ******************************************************************************/
-LED::LED()
+LED::LED(volatile uint8_t * ddr, uint8_t ddrmsk, volatile uint8_t * pin, volatile uint8_t * port)
 {	
-	_ddr  = &LED_DDR;						// Put definitions in local variables.
-	_pin  = &LED_PIN;
-	_port = &LED_PORT;
+	_ddr	= ddr;
+	*_ddr	|= ddrmsk;							// Put definitions in local variables.
+	_pin	= pin;
+	_port	= port;
 	
-    _HIGH = *_ddr;
-    _LOW  = *_ddr ^ 0xFF;
-    
+	_HIGH	= *_ddr;
+	_LOW	= *_ddr ^ 0xFF;
 }
 
 /*******************************************************************************
- * 	Method for turning the LED-state on.
+ * Method for turning the LED-state on.
  ******************************************************************************/
-void LED::setLedStateHigh()
+void LED::setLed()
 {
 	*_port |= _HIGH;
 }
 
 /*******************************************************************************
- * 	Method for turning the LED-state off.
+ * Method for turning the LED-state off.
  ******************************************************************************/
-void LED::setLedStateLow()
+void LED::resetLed()
 {
 	*_port &= _LOW;
 }
 
 /*******************************************************************************
- * 	Method for turning the LED-state off.
+ * Method for turning the LED-state off.
  ******************************************************************************/
-void LED::invertLedState()
+void LED::toggleLed()
 {
 	*_port ^= 0xFF;
 }
 
 /*******************************************************************************
- * 	Method for turning the LED-state off. Used for debugging.
+ * Method for turning the LED-state off. Used for debugging.
  *
- *	@return state The current LED-state (TRUE/FALSE).
+ * @return state The current LED-state (TRUE/FALSE).
  ******************************************************************************/
 bool LED::getLedState()
 {

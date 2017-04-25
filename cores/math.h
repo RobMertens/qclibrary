@@ -18,6 +18,7 @@ class vector
 		void norm();
 
 		//Getters ********************************************************************
+		float mag();
 		float dot(vector);
 
 		vector sum(vector);
@@ -26,7 +27,6 @@ class vector
 		vector cross(vector);
 	
 	private:
-		float mag();
 
 };
 
@@ -51,8 +51,9 @@ class quaternion
 		void inv();
 
 		//Getters ********************************************************************     
+		float mag();
 		float dot(quaternion);    
-
+		
 		quaternion sum(quaternion);
 		quaternion multiply(float);
 		quaternion cross(quaternion); //Quaternion cross product.
@@ -61,7 +62,7 @@ class quaternion
 		vector q2euler();
 
 	private:
-		float mag();
+
 };
 
 #endif

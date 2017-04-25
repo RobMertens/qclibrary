@@ -25,7 +25,6 @@
  * @version: 	1.0.1
  ******************************************************************************/
 
-#include <avr/io.h>
 #include <ESC.h>
 
 /*******************************************************************************
@@ -46,21 +45,22 @@
  * @param: minMicrosecond The zero throttle pulse length [µs] (DEFAULT=1000).
  * @param: maxMicrosecond The full throttle pulse length [µs] (DEFAULT=2000).
  ******************************************************************************/
-ESC::ESC(volatile uint8_t * ddr, uint8_t mask, volatile uint8_t * pin, volatile uint8_t * port, volatile uint8_t * tccr=&TCCR1, volatile uint16_t * tcnt=&TCNT1, volatile uint8_t * timsk=&TIMSK1, int minMicrosecond=1000, int maxMicrosecond=2000)
+ESC::ESC(volatile uint8_t * ddr, uint8_t ddrmsk, volatile uint8_t * pin, volatile uint8_t * port, uint16_t minMicrosecond=1000, uint16_t maxMicrosecond=2000)
 {	
 	// IO.
-	_ddr  = &ddr;							// Put definitions in local variables.
-	_pin  = &pin;
-	_port = &port;
+	_ddr  	= ddr;							// Put definitions in local variables.
+	_pin  	= pin;
+	_port 	= port;
 
-	*_ddr |= mask;
+	*_ddr 	|= ddrmsk;
 	
 	// ESC Timer.
-	_escTimer = timer(&tccr, &tcnt, &timsk)
+	_t1 	= timer16(t_alias::T1);					// TIMER1.
+	_t3	= timer16(t_alias::T3);					// TIMER3.
 	
 	//
-	_HIGH = *_ddr;
-	_LOW  = *_ddr ^ 0xFF;
+	_HIGH 	= *_ddr;
+	_LOW  	= *_ddr ^ 0xFF;
 
 	_minTicks = microseconds2Ticks(minMicrosecond);
 	_maxTicks = microseconds2Ticks(maxMicrosecond);
@@ -88,16 +88,8 @@ ESC::ESC(volatile uint8_t * ddr, uint8_t mask, volatile uint8_t * pin, volatile 
  ******************************************************************************/
 void ESC::arm(uint8_t prescale=0x01, uint8_t mask=0x01)
 {
-	// TODO::Asking a prescale and timsk here is odd.
-	//	 Autocomputation timer in function of timer length (8/16-bit).
-	_escTimer.initialize(prescale, mask)				// DEFAULT TIMER1:
-									// Set up the 16-bit timer prescaler value 0.
-    									// Thus our timer resolution equals:
-    									// (absolute) = 1/16000000 = 0.0825µs
-    									// (relative) = 0.0825/4000 = negligible...
-	
-	_us2t = (1/1000000)/(prescale/16000000);			// ticks = (1 / desired frequency) / (prescaler / clock speed) - 1.
-									// TODO::variable frequency and clock speed.
+	_t1.initialize(t_mode::F_PWM, t_channel::ABC, bool inverted=false);
+	_t3.initialize(t_mode::F_PWM, t_channel::ABC, bool inverted=false);
 }
 
 /*******************************************************************************
@@ -114,7 +106,6 @@ void ESC::arm(uint8_t prescale=0x01, uint8_t mask=0x01)
 void ESC::writeVariableSpeed(int us1, int us2, int us3, int us4)
 {
 	*_port |= _HIGH;						// Set ouput HIGH.
-	_escTimer.reset();						// Reset timer.
 	
 	int tck1 = microseconds2Ticks(us1);				// Transform microseconds to timer compatible ticks.
 	int tck2 = microseconds2Ticks(us2);

@@ -1,7 +1,11 @@
 # /* UNDER CONSTRUCTION */
+
+## Discription.
 Version 1.1.1 is still under construction.
 
-##
+This quadcopter uses my avrtimerlib for atmega2560.
+
+## Author
 
 _@author:_ Rob Mertens
 
