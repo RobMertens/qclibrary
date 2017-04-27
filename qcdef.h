@@ -4,23 +4,23 @@
 #include <avr/io.h>
 
 /*******************************************************************************
- *	Quadcopter-Library-v1
- *  DEFINITIONS.H
+ * Quadcopter-Library-v1
+ * QCDEF.H
  *  
- *	This file contains predefined constants that mostly depend on hardware.
- *	The definitions are filled in for my hardware setup which exist out of:
- *	(1) 1x Arduino MEGA ADK (same pinout as MEGA)
- *	(2) 1x Reely HT-5 TX/RX
- *	(3)	1x MPU6050 w/ level shifter
- *	(4) 4x Turnigy Plush 10A
- *	(5) 4x DYS BE1806-2300kV
+ * This file contains predefined constants that mostly depend on hardware.
+ * The definitions are filled in for my hardware setup which exist out of:
+ * (1) 1x Arduino MEGA ADK (same pinout as MEGA)
+ * (2) 1x Reely HT-5 TX/RX
+ * (3)	1x MPU6050 w/ level shifter
+ * (4) 4x Turnigy Plush 10A
+ * (5) 4x DYS BE1806-2300kV
  *
- *	If you are using another arduino make sure it works with 16MHz clock speed.
- *	For addressing the  correct registers see your arduino type PINOUT-
- *	diagram.
+ * If you are using another arduino make sure it works with 16MHz clock speed.
+ * For addressing the  correct registers see your arduino type PINOUT-
+ * diagram.
  *
- *  @author Rob Mertens
- *  @version 1.0.1 14/08/2016
+ * @author Rob Mertens
+ * @version 1.0.1 14/08/2016
  ******************************************************************************/
 
 /* REGISTER SETTINGS AND VALUES*/
