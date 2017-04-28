@@ -21,7 +21,7 @@
  * Constructor for the ESC-class. By making an object with this constructor
  * all local variables are set together with the avr-timer.
  ******************************************************************************/
-RX::RX(volatile uint8_t * pin, volatile uint8_t pcmsk, uint8_t pcint, uint8_t pcie)
+RX::RX(volatile uint8_t * pin, volatile uint8_t pcmsk, uint8_t pcint, uint8_t pcie, uint16_t periodMicrosecond, uint16_t maxMicrosecond, uint16_t minMicrosecond)
 {	
 	_pin	= pin;								// Pass trough the Pin Input Register to local variable.
 	_pcmsk 	= pcmsk;							// Pass trough the Pin Change Mask Register to local variable.
@@ -30,6 +30,10 @@ RX::RX(volatile uint8_t * pin, volatile uint8_t pcmsk, uint8_t pcint, uint8_t pc
 	_pcie	= pcie;								//
 	
 	_t2 	= timer8(t_alias::T2);						// TIMER2.
+	
+	_periodMicroseconds = periodMicroseconds;
+	_maxRxCycle = maxMicrosecond/periodMicroseconds;
+	_minRxCycle = minMicrosecond/periodMicroseconds;
 	
 	for (uint8_t mask=0x01; mask<=0x80; mask<<=1)				// Loop for determining and splitting the Pin Change Interrupt Pins in different bytes.
     	{
@@ -67,33 +71,74 @@ void RX::initialize(void)
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-uint8_t getThrottleChannel(uint8_t channel)
+float getThrottleChannel()
 {
-	return _channel1;
+	float rx = 0.0f;
+	float dc = 0.0f;
+	
+	rx = _channel1/_periodMicroseconds;
+	dc = rxc2dc(rx);
+	
+	return dc;
 }
 
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-uint8_t getPitchChannel(uint8_t channel)
+float getPitchChannel()
 {
-	return _channel3;
+	float rx = 0.0f;
+	float dc = 0.0f;
+	
+	rx = _channel3/_periodMicroseconds;
+	dc = rxc2dc(rx);
+	
+	return dc;
+
 }
 
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-uint8_t getRollChannel(uint8_t channel)
+float getRollChannel()
 {
-	return _channel4;
+	float rx = 0.0f;
+	float dc = 0.0f;
+	
+	rx = _channel4/_periodMicroseconds;
+	dc = rxc2dc(rx);
+	
+	return dc;
+
 }
 
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-uint8_t getYawChannel(uint8_t channel)
+float getYawChannel()
 {
-	return _channel2;
+	float rx = 0.0f;
+	float dc = 0.0f;
+	
+	rx = _channel2/_periodMicroseconds;
+	dc = rxc2dc(rx);
+	
+	return dc;
+
+}
+
+/*******************************************************************************
+ * Method for mapping RX pulses 2 duty cycle.
+ ******************************************************************************/
+float ESC::rxc2dc(float rxCycle)
+{
+	float dc;
+	
+	if(rxCycle >= _maxRxCycle)dc=1.0f;
+	else if(rxCycle <= _minRxCycle)esc=0.0f;
+	else{dc = ((1)/(_maxEscCycle - _minEscCycle))*rxCycle}
+	
+	return dc;
 }
 
 /*******************************************************************************

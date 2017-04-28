@@ -81,10 +81,10 @@ void ESC::arm(uint8_t prescale=0x01)
  ******************************************************************************/
 void ESC::writeSpeed(float dc1, float dc2, float dc3, float dc4)
 {
-	_t1.setDutyCycleB(dc2Escc(dc1));			// Clockwise.
+	_t1.setDutyCycleB(dc2Escc(dc1));					// Clockwise.
 	_t1.setDutyCycleC(dc2Escc(dc2));
 	
-	_t3.setDutyCycleB(dc2Escc(dc3));			// Counter Clockwise.
+	_t3.setDutyCycleB(dc2Escc(dc3));					// Counter Clockwise.
 	_t3.setDutyCycleC(dc2Escc(dc4));
 }
 

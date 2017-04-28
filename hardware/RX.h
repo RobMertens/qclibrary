@@ -14,7 +14,7 @@ class RX : public interrupt::handler
 
   	public:
 	  	//Constructors ***************************************************************
-	    	RX(volatile uint8_t *, volatile uint8_t *, uint8_t, uint8_t);
+	    	RX(volatile uint8_t *, volatile uint8_t *, uint8_t, uint8_t, uint16_t=4000, uint16_t =2000, uint16_t=1000);
 	    
 	    	//Setters ********************************************************************
 	   	void initialize(void);
@@ -41,13 +41,24 @@ class RX : public interrupt::handler
 		uint8_t _ch2;
 		uint8_t _ch3;
 		uint8_t _ch4;
-	
-		uint32_t _channel1;								// Word for storing the actual timer value.
+		
+		uint8_t _periodMicroseconds;
+		static float _maxRxCycle;							// Maximum timerticks range.
+	  	static float _minRxCycle;							// Minimum timerticks range.
+		
+		int8_t _offsetCh1;
+		int8_t _offsetCh2;
+		int8_t _offsetCh3;
+		int8_t _offsetCh4;
+		
+		uint32_t _channel1;								// Double word for storing the actual timer value.
 		uint32_t _channel2;
 		uint32_t _channel3;
 		uint32_t _channel4;
 		
 		uint8_t _lastChannel;
+		
+		float rxc2dc();
 	
 		// Static self.
 		static RX * _RX[4];
