@@ -85,6 +85,10 @@
 							// For PCINT16-23	PCMSK2 (MEGA only)
 
 
+const float us = 0.000001f;
+const float pi = 3.141592635898f;
+const float g  = 9.81f;
+
 #endif
 
 

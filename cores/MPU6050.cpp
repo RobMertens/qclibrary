@@ -29,7 +29,7 @@
  * @param: gyroscopeDataRegister The (1st) gyroscope measurement data register.
  * @param: acceleroDataRegister The (1st) accelerometer measurement data register.
  ******************************************************************************/
-MPU6050::MPU6050(uint8_t address, uint8_t gyroscopeScale=0x00, uint8_t acceleroScale=0x00, uint8_t gyroscopeScaleRegister=0x1B, uint8_t acceleroScaleRegister=0x1C, uint8_t gyroscopeDataRegister=0x43, uint8_t acceleroDataRegister=0x3B)
+MPU6050::MPU6050(uint8_t address, uint8_t gyroscopeScale, uint8_t acceleroScale, uint8_t gyroscopeScaleRegister, uint8_t acceleroScaleRegister, uint8_t gyroscopeDataRegister, uint8_t acceleroDataRegister)
 {	
 	_address  = address;
 	

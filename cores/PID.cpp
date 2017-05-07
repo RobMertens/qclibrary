@@ -31,7 +31,7 @@ PID::PID(void)
  * @param minLimit The minimum output limit.
  * @param maxLimit The maximum output limit.
  ******************************************************************************/
-PID::PID(float kp, float ki, float kd, float maxLimit, float minLimit, uint8_t direction)
+PID::PID(float kp, float ki, float kd, float maxLimit, float minLimit, int8_t direction)
 {	
 	_kp = kp;
 	_ki = ki;

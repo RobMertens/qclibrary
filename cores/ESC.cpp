@@ -1,23 +1,34 @@
 /******************************************************************************
  * Quadcopter-Library-v1
- * ESC.cpp
+ * ESCS.cpp
  *  
  * This file contains predefined functions for the ESC-class. The motors are
- * controlled by asynchronous Pulse Width Modulation (PWM).
+ * controlled by asynchronous Pulse Width Modulation (PWM). Next sketch
+ * describes the quadcopter in bottom view.
  * 
- * TODO::add number of motors.
- * TODO::assign esc(X) -> motor(Y) functions.
+ * 	/ 2 \   front   / 1 \
+ * 	\ccw/           \cw /
+ * 	   |::.........::|
+ * 	 l   |:       :|   r
+ * 	 e    |:     :|    i
+ * 	 f     |:::::|     g
+ * 	 t    |:     :|    h
+ * 	     |:       :|   t
+ * 	   |::.........::|
+ * 	/ 3 \           / 4 \
+ * 	\cw /   rear    \ccw/
+ *
  * TODO::variable frequency and clock speed.
  *
  * @author: 	Rob Mertens
- * @date:	14/08/2016
+ * @date:	07/05/2017
  * @version: 	1.1.1
  ******************************************************************************/
 
 #include <ESC.h>
 
 /*******************************************************************************
- * Constructor for the ESC-class.
+ * Constructor for the ESCS-class.
  * 
  * By making an object with this constructor all local variables are set together
  * with the avr-timer (DEFAULT=TIMER1). This constructor is compatible for most
@@ -26,22 +37,38 @@
  * 
  * @param: *ddr The Data Direction Register.
  * @param: ddrmsk The Data Direction Register mask.
- * @param: period The period length [µs] (DEFAULT=4000).
+ * @param: period The period length 			 [µs] (DEFAULT=4000).
  * @param: maxMicrosecond The full throttle pulse length [µs] (DEFAULT=2000).
  * @param: minMicrosecond The zero throttle pulse length [µs] (DEFAULT=1000).
  ******************************************************************************/
-ESC::ESC(volatile uint8_t * ddr, uint8_t ddrmsk, uint16_t periodMicrosecond, uint16_t maxMicrosecond, uint16_t minMicrosecond)
+ESC::ESC(t_alias alias, t_channel channel, uint16_t periodMicrosecond, uint16_t maxMicrosecond, uint16_t minMicrosecond)
 {	
-	// IO.
-	_ddr  	= ddr;								// Put definitions in local variables.
-	*_ddr 	|= ddrmsk;
-	
 	// ESC Timer.
-	_t1 	= timer16(t_alias::T1);						// TIMER1.
-	_t3	= timer16(t_alias::T3);						// TIMER3.
-
+	*_t 	= timer16(alias);						// TIMER16.
+	
+	// IO.
+	assign(channel);						
+	
 	_maxEscCycle = (double)(maxMicrosecond/periodMicrosecond);		// Is not 1.0f!
 	_minEscCycle = (double)(minMicrosecond/periodMicrosecond);		// Is not 0.0f!
+}
+
+/*******************************************************************************
+ * Method for assigning a timer and PWM channel to an ESC. This should match
+ * your hardware setup.
+ * 
+ * @param: alias The 16-bit timer alias.
+ * @param: channel The 16-bit timer channel B or C. 
+ ******************************************************************************/
+int8_t ESC::assign(t_channel channel)
+{
+	int8_t ret = 0;
+	
+	if(channel==t_channel::B)setDutyCycle = &_t->setDutyCycleB;
+	else if(channel==t_channel::C)setDutyCycle = &_t->setDutyCycleC;
+	else{ret=-1}
+	
+	return ret;
 }
 
 /*******************************************************************************
@@ -50,42 +77,26 @@ ESC::ESC(volatile uint8_t * ddr, uint8_t ddrmsk, uint16_t periodMicrosecond, uin
  *
  * @param: prescale The prescale mask value (DEFAULT=0x01).
  ******************************************************************************/
-void ESC::arm(uint8_t prescale=0x01)
+void ESC::arm(uint8_t prescale, uint16_t top)
 {
-	_t1.initialize(t_mode::F_PWM, t_channel::ABC, bool inverted=false);	// TIMER1 Init PWM-mode.
-	_t1.setPrescaler(prescale);						// t_tck = (1 * prescale) / 16M = 0,0625 µs.
+	_t->initialize(t_mode::PWM_F, t_channel::BC_TOP, t_inverted::NORMAL);	// TIMER1 Init PWM-mode.
+	_t->setPrescaler(prescale);						// t_tck = (1 * prescale) / 16M = 0,0625 µs.
 										// t_max = 6,3e^(-8) * (2^16 - 1) = 4096 µs.
-	_t1.setCompareValueA(0xF9FF);						// t_ocr = (4000 µs / 0,0625 µs) - 1 = 63999 (0xF9FF) ticks.
- 	_t1.setDutyCycleB(_minEscCycle);
-	_t1.setDutyCycleC(_minEscCycle);
+	_t->setCompareValueA(top);						// t_ocr = (4000 µs / 0,0625 µs) - 1 = 63999 (0xF9FF) ticks.
+ 	
+	writeMinSpeed();
 	
-	_t3.initialize(t_mode::F_PWM, t_channel::ABC, bool inverted=false);	// TIMER3 same.
-	_t3.setPrescaler(prescale);
-	_t3.setCompareValueA(0xF9FF);
-	_t3.setDutyCycleB(_minEscCycle);
-	_t3.setDutyCycleC(_minEscCycle);
-	
-	_t1.reset();								// Start PWM.
-	_t3.reset();
+	_t->reset();
 }
 
 /*******************************************************************************
  * Method for writing variable PWM-pulses in length to the ESC's.
- *
- * TODO::use interrupts to do other things.
  *	
  * @param: dc1 The duty cycle for ESC1 in microseconds.
- * @param: dc2 The duty cycle for ESC2 in microseconds.
- * @param: dc3 The duty cycle for ESC3 in microseconds.
- * @param: dc4 The duty cycle for ESC4 in microseconds.
  ******************************************************************************/
-void ESC::writeSpeed(float dc1, float dc2, float dc3, float dc4)
+void ESC::writeSpeed(float dc)
 {
-	_t1.setDutyCycleB(dc2Escc(dc1));					// Clockwise.
-	_t1.setDutyCycleC(dc2Escc(dc2));
-	
-	_t3.setDutyCycleB(dc2Escc(dc3));					// Counter Clockwise.
-	_t3.setDutyCycleC(dc2Escc(dc4));
+	*setDutyCycle(dc2Escc(dc));
 }
 
 /*******************************************************************************
@@ -93,11 +104,7 @@ void ESC::writeSpeed(float dc1, float dc2, float dc3, float dc4)
  ******************************************************************************/
 void ESC::writeMaxSpeed()
 {
-	_t1.setDutyCycleB(_maxEscCycle);					// Clockwise.
-	_t1.setDutyCycleC(_maxEscCycle);
-	
-	_t3.setDutyCycleB(_maxEscCycle);					// Counter Clockwise.
-	_t3.setDutyCycleC(_maxEscCycle);
+	writeSpeed(dc2Escc(_maxEscCycle));
 }
 
 /*******************************************************************************
@@ -105,11 +112,7 @@ void ESC::writeMaxSpeed()
  ******************************************************************************/
 void ESC::writeMinSpeed()
 {
-	_t1.setDutyCycleB(_minEscCycle);					// Clockwise.
-	_t1.setDutyCycleC(_minEscCycle);
-	
-	_t3.setDutyCycleB(_minEscCycle);					// Counter Clockwise.
-	_t3.setDutyCycleC(_minEscCycle);
+	writeSpeed(dc2Escc(_minEscCycle));
 }
 
 /*******************************************************************************
