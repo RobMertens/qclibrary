@@ -2,7 +2,7 @@
 #define _MPU6050_H_
 
 #include <Wire.h>
-#include <cores/math.h>
+#include "math.h"
 
 class MPU6050
 {
@@ -50,7 +50,7 @@ class MPU6050
 			vector wVeloc; 						//After integration. (crap)
 			vector wAccel; 						//Gravity compensated.
 		private:
-	}
+	};
 		
   	private:
   		/* Declarations *******************************************************/

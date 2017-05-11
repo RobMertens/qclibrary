@@ -1,21 +1,23 @@
 /******************************************************************************
  * Quadcopter-Library-v1
- * qc_esc_receiver.ino
+ * qc_esc_test.ino
  * 
- * This is a test file for the receiver.
+ * This is a test file for the electronic speed controllers.
  *
  * @author:	Rob Mertens
- * @date:	10/05/2017
+ * @date:	07/05/2017
  * @version:	1.1.1
  ******************************************************************************/
 
-//#include <definitions.h>
-#include "RX.h"
+#include "timer8.h"
+#include "timer16.h"
+#include "ESC.h"
 
 /******************************************************************************
  * DECLARATIONS
  ******************************************************************************/
-RX rec(&PCMSK0, 0x0F);
+timer8 timer(t_alias::T2);
+ESC esc(t_alias::T1, t_channel::B);
 
 /******************************************************************************
  * MAIN
@@ -23,27 +25,14 @@ RX rec(&PCMSK0, 0x0F);
 int main(void)
 {
 	//Initialize.
-	Serial.begin(9600);
-	
-	rec.initialize(rx_mode::NORMAL);
+	timer.initialize(t_mode::NORMAL, t_interrupt::OVF);
+	timer.setPrescaler(1);
+	esc.arm();
 	
 	//Run motors.
-	for(;;)
-	{
-		Serial.print("T: ");
-		Serial.print(rec.getThrottleChannel());
-		Serial.print("\t");
-		
-		Serial.print("R: ");
-		Serial.print(rec.getRollChannel());
-		Serial.print("\t");
-		
-		Serial.print("P: ");
-		Serial.print(rec.getPitchChannel());
-		Serial.print("\t");
-		
-		Serial.print("Y: ");
-		Serial.print(rec.getYawChannel());
-		Serial.print("\n");
-	}
+	esc.writeSpeed(0.5f);
+	while(timer.getOverflows() >= 1000){;;}
+	esc.writeMaxSpeed();
+	while(timer.getOverflows() >= 1000){;;}
+	esc.writeMinSpeed();
 }

@@ -1,23 +1,29 @@
 /******************************************************************************
  * Quadcopter-Library-v1
- * ESCS.cpp
+ * ESC.cpp
  *  
- * This file contains predefined functions for the ESC-class. The motors are
- * controlled by asynchronous Pulse Width Modulation (PWM). Next sketch
- * describes the quadcopter in bottom view.
- * 
- * 	/ 2 \   front   / 1 \
- * 	\ccw/           \cw /
- * 	   |::.........::|
- * 	 l   |:       :|   r
- * 	 e    |:     :|    i
- * 	 f     |:::::|     g
- * 	 t    |:     :|    h
- * 	     |:       :|   t
- * 	   |::.........::|
- * 	/ 3 \           / 4 \
- * 	\cw /   rear    \ccw/
+ * This file contains predefined functions for the ESC-class. A motor is
+ * controlled by "asynchronous" Pulse Width Modulation (PWM). Asynchronous
+ * points to the fact that the dutycycle can be set anywhere in the main
+ * program. The motors are primarily controlled w/ hardware functions.
  *
+ * Next sketch describes the quadcopter in top and bottom view. This sketch
+ * describes the correct numbering and direction of rotation of each motor.
+ * 
+ *	       TOP-VIEW			     BOTTOM-VIEW
+ *
+ * 	/ 2 \   front   / 1 \		/ 2 \   front   / 1 \
+ * 	\cw /           \ccw/		\ccw/           \cw /
+ * 	   |::.........::|   		   |::.........::|   
+ * 	 l   |:       :|   r		 l   |:       :|   r
+ * 	 e    |:     :|    i		 e    |:     :|    i
+ * 	 f     |:::::|     g		 f     |:::::|     g
+ * 	 t    |:     :|    h		 t    |:     :|    h
+ * 	     |:       :|   t		     |:       :|   t
+ * 	   |::.........::|		   |::.........::|
+ * 	/ 3 \           / 4 \		/ 3 \           / 4 \
+ * 	\ccw/   rear    \cw /		\cw /   rear    \ccw/
+ 
  * TODO::variable frequency and clock speed.
  *
  * @author: 	Rob Mertens
@@ -25,13 +31,13 @@
  * @version: 	1.1.1
  ******************************************************************************/
 
-#include <ESC.h>
+#include "ESC.h"
 
 /*******************************************************************************
- * Constructor for the ESCS-class.
+ * Constructor for the ESC-class.
  * 
  * By making an object with this constructor all local variables are set together
- * with the avr-timer (DEFAULT=TIMER1). This constructor is compatible for most
+ * with the avr-timer. This constructor is compatible for most
  * ESC's which have a DEFAULT microsecond PMW-range of minimum 1000us (motors off)
  * and maximum 2000us (motors at maximum throttle) or user specified.
  * 
@@ -44,7 +50,7 @@
 ESC::ESC(t_alias alias, t_channel channel, uint16_t periodMicrosecond, uint16_t maxMicrosecond, uint16_t minMicrosecond)
 {	
 	// ESC Timer.
-	*_t 	= timer16(alias);						// TIMER16.
+	_t = timer16(alias);							// TIMER16.
 	
 	// IO.
 	assign(channel);						
@@ -58,15 +64,16 @@ ESC::ESC(t_alias alias, t_channel channel, uint16_t periodMicrosecond, uint16_t 
  * your hardware setup.
  * 
  * @param: alias The 16-bit timer alias.
- * @param: channel The 16-bit timer channel B or C. 
+ * @param: channel The 16-bit timer channel B or C.
+ * @return: ret A return value ? 0 for successful : -1 for unsuccessful.
  ******************************************************************************/
 int8_t ESC::assign(t_channel channel)
 {
 	int8_t ret = 0;
 	
-	if(channel==t_channel::B)setDutyCycle = &_t->setDutyCycleB;
-	else if(channel==t_channel::C)setDutyCycle = &_t->setDutyCycleC;
-	else{ret=-1}
+	if(channel==t_channel::B)setDutyCycle = &timer16::setDutyCycleB;
+	else if(channel==t_channel::C)setDutyCycle = &timer16::setDutyCycleC;
+	else{ret=-1;}
 	
 	return ret;
 }
@@ -77,42 +84,65 @@ int8_t ESC::assign(t_channel channel)
  *
  * @param: prescale The prescale mask value (DEFAULT=0x01).
  ******************************************************************************/
-void ESC::arm(uint8_t prescale, uint16_t top)
+void ESC::arm(uint16_t prescale, uint16_t top)
 {
-	_t->initialize(t_mode::PWM_F, t_channel::BC_TOP, t_inverted::NORMAL);	// TIMER1 Init PWM-mode.
-	_t->setPrescaler(prescale);						// t_tck = (1 * prescale) / 16M = 0,0625 µs.
+	_t.initialize(t_mode::PWM_F, t_channel::BC_TOP, t_inverted::NORMAL);	// TIMER16 Init PWM-mode.
+	_t.setPrescaler(prescale);						// t_tck = (1 * prescale) / 16M = 0,0625 µs.
 										// t_max = 6,3e^(-8) * (2^16 - 1) = 4096 µs.
-	_t->setCompareValueA(top);						// t_ocr = (4000 µs / 0,0625 µs) - 1 = 63999 (0xF9FF) ticks.
+	_t.setCompareValueA(top);						// t_ocr = (4000 µs / 0,0625 µs) - 1 = 63999 (0xF9FF) ticks.
  	
 	writeMinSpeed();
 	
-	_t->reset();
+	_t.reset();
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void ESC::unarm()
+{
+	//TODO::safely shut down the motors.
 }
 
 /*******************************************************************************
  * Method for writing variable PWM-pulses in length to the ESC's.
  *	
- * @param: dc1 The duty cycle for ESC1 in microseconds.
+ * @param: dc The duty cycle for the ESC in microseconds.
+ * @return ret A return value for debugging ? 0 successful : -1 unsuccessful.
  ******************************************************************************/
-void ESC::writeSpeed(float dc)
+int8_t ESC::writeSpeed(float dc)
 {
-	*setDutyCycle(dc2Escc(dc));
+	int8_t ret = 0;
+	
+	ret = (_t.*setDutyCycle)(dc2Escc(dc));
+	
+	return ret;
 }
 
 /*******************************************************************************
  * Method for writing HIGH PWM-pulses to the ESC's.
+ * @return ret A return value for debugging ? 0 successful : -1 unsuccessful.
  ******************************************************************************/
-void ESC::writeMaxSpeed()
+int8_t ESC::writeMaxSpeed()
 {
-	writeSpeed(dc2Escc(_maxEscCycle));
+	int8_t ret = 0;
+		
+	ret = writeSpeed(dc2Escc(_maxEscCycle));
+	
+	return ret;
 }
 
 /*******************************************************************************
  * Method for writing LOW PWM-pulses to the ESC's.
+ * @return ret A return value for debugging ? 0 successful : -1 unsuccessful.
  ******************************************************************************/
-void ESC::writeMinSpeed()
+int8_t ESC::writeMinSpeed()
 {
-	writeSpeed(dc2Escc(_minEscCycle));
+	int8_t ret = 0;	
+	
+	ret = writeSpeed(dc2Escc(_minEscCycle));
+	
+	return ret;
 }
 
 /*******************************************************************************

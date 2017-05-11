@@ -1,5 +1,5 @@
-#ifndef _QCDEF_H_
-#define _QCDEF_H_
+#ifndef _DEFINITIONS_H_
+#define _DEFINITIONS_H_
 
 #include <avr/io.h>
 
@@ -39,8 +39,8 @@
 							// These are arduino pins 34, 35, 36 and 37 (PC0, PC1, PC2 and PC3).
 #define E_PIN				PINC		// Data Input Register for the ESC's.
 #define E_PORT	 			PORTC		// Data Output Register for the ESC's.
-#define E_MINPULSEWIDTH			700		// Minimum microsecond value [µs].
-#define E_MAXPULSEWIDTH			2000		// Maximum microsecond value [µs].
+#define E_MINUS				700		// Minimum microsecond value [µs].
+#define E_MAXUS				2000		// Maximum microsecond value [µs].
 
 // BATTERY: index B
 #define B_ALARMLEVEL 			1110		// Battery low voltage boundary (ex.: 1110 equals 11.10V).

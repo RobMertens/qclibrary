@@ -1,8 +1,10 @@
 #ifndef _RX_H_
 #define _RX_H_
 
-#include <cores/interrupt.h>
-#include <timer8.h>
+#include <avr/interrupt.h>
+#include "interrupt.h"
+
+class timer8;
 
 extern "C" void PCINT0_vect(void) __attribute__ ((signal));
 extern "C" void PCINT1_vect(void) __attribute__ ((signal));

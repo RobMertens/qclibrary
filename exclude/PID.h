@@ -6,7 +6,7 @@ class PID
 	public:
 		//Constructors ***************************************************************
 		PID(void);
-		PID(float, float, float, float, float, int8_t=FORWARD);
+		PID(float, float, float, float, float, int8_t);
 
 		//Setters ********************************************************************
 		void setOutputLimits(float, float);

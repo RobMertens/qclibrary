@@ -10,7 +10,7 @@ class BAT
 		//Setters ********************************************************************
 
 		//Getters ********************************************************************
-		uint8_t getBatteryLevel(void);
+		uint8_t getLevel(void);
 
 	private:
 		uint8_t _level;								// Variable with LOW LED-state.
