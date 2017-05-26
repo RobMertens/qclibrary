@@ -11,11 +11,12 @@ extern "C" void PCINT1_vect(void) __attribute__ ((signal));
 extern "C" void PCINT2_vect(void) __attribute__ ((signal));
 extern "C" void PCINT3_vect(void) __attribute__ ((signal));
 
+//TODO::move this.
 enum class rx_mode : uint8_t
 {
 	NONE = 0,
-	NORMAL = 1,
-	INVERTED = 2
+	M1 = 1,
+	M2 = 2
 };
 
 class RX : public interrupt::handler
@@ -84,8 +85,8 @@ class RX : public interrupt::handler
 		
 		float rxc2dc(float);
 		
-		void setMode2Normal(void);
-		void setMode2Inverted(void);
+		void setMode2M1(void);
+		void setMode2M2(void);
 		
 		// Static self.
 		static RX * _RX[4];

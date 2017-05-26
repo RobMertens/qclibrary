@@ -12,6 +12,7 @@ class PID
 		void setOutputLimits(float, float);
 		void setGainValues(float, float, float);
 		void setDirection(uint8_t);
+		void reset();
 							  
 		//Getters ********************************************************************
 		float calculate(float, float);

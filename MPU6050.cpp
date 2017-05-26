@@ -29,33 +29,45 @@
  * @param: gyroscopeDataRegister The (1st) gyroscope measurement data register.
  * @param: acceleroDataRegister The (1st) accelerometer measurement data register.
  ******************************************************************************/
-MPU6050::MPU6050(uint8_t address, uint8_t gyroscopeScale, uint8_t acceleroScale, uint8_t gyroscopeScaleRegister, uint8_t acceleroScaleRegister, uint8_t gyroscopeDataRegister, uint8_t acceleroDataRegister)
+MPU6050::MPU6050(uint8_t address, t_alias alias, uint8_t gyroscopeScale, uint8_t acceleroScale)
 {	
-	_address  = address;
-	
+	_address 	= address;
 	_gyroscopeScale = gyroscopeScale;
 	_acceleroScale  = acceleroScale;
 	
-	_pwrMgmtRegister        = 0x6B;
-	_gyroscopeScaleRegister = gyroscopeScaleRegister;
-	_acceleroScaleRegister  = acceleroScaleRegister;
-	_gyroscopeDataRegister  = gyroscopeDataRegister;
-	_acceleroDataRegister   = acceleroDataRegister;
-	
-	Wire.begin();
-	Wire.setClock(400000L);
+	_t = timer8(alias);
 }
 
 /*******************************************************************************
  * Method for activating the MPU6050.
  ******************************************************************************/
 void MPU6050::initialize()
-{
-	// Start MPU
+{	
+	setRegisters();
+	
+	//Start wire.
+	Wire.begin();
+	Wire.setClock(400000L);
+	
+	//Start MPU
 	Wire.beginTransmission(_address);
-	Wire.write(_pwrMgmtRegister);
+	Wire.write(*_pwrmgmt);
 	Wire.write(0x00);
 	Wire.endTransmission();
+	
+	//Timer.
+	_t.initialize(t_mode::NORMAL, t_interrupt::OVF);
+	_t.setPrescaler(64);
+	_t.reset();
+}
+
+void setRegisters(void)
+{
+	*_pwrmgmt = 0x6B;
+	*_gyrcnfg = 0x1B;
+	*_acccnfg = 0x1C;
+	*_gyrdata = 0x43;
+	*_accdata = 0x3B;
 }
 
 /*******************************************************************************
@@ -68,29 +80,30 @@ void MPU6050::initialize()
  * @param: value The gyroscope scale value. (DEFAULT=0x00)
  * @return succes Is the register set properly? (TRUE/FALSE)
  ******************************************************************************/
-bool MPU6050::setGyroscopeScale(uint8_t value=0x00)
+int8_t MPU6050::setGyroscopeScale(uint8_t scale)
 {
-	bool success = false;
-	
-	// Scale value.
-	_gyroscopeScale = value;
+	int8_t ret = -1;
 	
 	// Set gyroscope to 500 degrees per second scale.
 	Wire.beginTransmission(_address);
-	Wire.write(_gyroscopeScaleRegister);
-	Wire.write(_gyroscopeScale);
+	Wire.write(*_gyrcnfg);
+	Wire.write(scale);
 	Wire.endTransmission();
 	
 	// Perform check on gyroscope scaling.
 	// If register setting is set correctly set success bit.
 	Wire.beginTransmission(_address);
-	Wire.write(_gyroscopeScaleRegister);
+	Wire.write(*_gyrcnfg);
 	Wire.endTransmission();
-	Wire.requestFrom(_address, 1);
+	Wire.requestFrom(_address, (uint8_t)1);
 	while(Wire.available() < 1);
-    		if(Wire.read() == _gyroscopeScale){success = true;}  
+    		if(Wire.read()==scale)
+		{
+			_gyroscopeScale = scale;
+			ret = 0;
+		}
 	
-	return success;
+	return ret;
 }
 
 /*******************************************************************************
@@ -103,29 +116,30 @@ bool MPU6050::setGyroscopeScale(uint8_t value=0x00)
  * @param: value The accelerometer scale value. (DEFAULT=0x00)
  * @return: succes Is the register set properly? (TRUE/FALSE)
  ******************************************************************************/
-bool MPU6050::setAcceleroScale(uint8_t value=0x00)
+int8_t MPU6050::setAcceleroScale(uint8_t scale)
 {
-	bool success = false;
+	int8_t ret = -1;
 	
-	// Scale value.
-	_acceleroScale = value;
-	
-	// Set gyroscope to 2g degrees per second scale.
+	// Set gyroscope to xg degrees per second scale.
 	Wire.beginTransmission(_address);
-	Wire.write(_acceleroScaleRegister);
-	Wire.write(_acceleroScale);
+	Wire.write(*_acccnfg);
+	Wire.write(scale);
 	Wire.endTransmission();
 
 	// Perform check on accelero scaling.
 	// If register setting is set correctly set success bit.
 	Wire.beginTransmission(_address);
-	Wire.write(_acceleroScaleRegister);
+	Wire.write(*_acccnfg);
 	Wire.endTransmission();
-	Wire.requestFrom(_address, 1);
+	Wire.requestFrom(_address, (uint8_t)1);
 	while(Wire.available() < 1);
-		if(Wire.read() == _acceleroScale){success = true;}  
+		if(Wire.read()==scale)
+		{
+			_acceleroScale = scale;
+			ret = 0;
+		}  
 	
-	return success;
+	return ret;
 }
 
 /*******************************************************************************
@@ -140,9 +154,9 @@ void MPU6050::setBias(vector *b)
 	
 	//Read the MPU-6050 gyroscope data registers.
 	Wire.beginTransmission(_address);
-	Wire.write(_gyroscopeDataRegister);
+	Wire.write(*_gyrdata);
 	Wire.endTransmission();
-	Wire.requestFrom(_address, 6);
+	Wire.requestFrom(_address, (uint8_t)6);
 	while(Wire.available() < 6);
 	packet[0] = Wire.read()<<8|Wire.read();
 	packet[1] = Wire.read()<<8|Wire.read();
@@ -168,9 +182,9 @@ void MPU6050::setGyroscope(vector *w, vector b)
 	
 	//Read the MPU-6050 gyroscope data registers.
 	Wire.beginTransmission(_address);
-	Wire.write(_gyroscopeDataRegister);
+	Wire.write(*_gyrdata);
 	Wire.endTransmission();
-	Wire.requestFrom(_address, 6);
+	Wire.requestFrom(_address, (uint8_t)6);
 	while(Wire.available() < 6);
 	packet[0] = Wire.read()<<8|Wire.read();
 	packet[1] = Wire.read()<<8|Wire.read();
@@ -195,9 +209,9 @@ void MPU6050::setAccelero(vector *a)
 	
 	//Read the MPU-6050 accelerometer data registers.
 	Wire.beginTransmission(_address);
-	Wire.write(_acceleroDataRegister);
+	Wire.write(*_accdata);
 	Wire.endTransmission();
-	Wire.requestFrom(_address, 6);
+	Wire.requestFrom(_address, (uint8_t)6);
 	while(Wire.available() < 6);
 	packet[0] = Wire.read()<<8|Wire.read();
 	packet[1] = Wire.read()<<8|Wire.read();
@@ -219,35 +233,37 @@ void MPU6050::setAccelero(vector *a)
  * @param: *q The unit rotation quaternion (q_w, q_x, q_y, q_z)' pointed to [-].
  * @param: *w The raw rotational velocity vector (w_x, w_y, w_z)' pointed to [rad/s].
  * @param: *a The raw linear acceleration vector (a_x, a_y, a_z)' pointed to [g].
- * @param: time The period for integration. (TODO::Remove this)
  ******************************************************************************/
-void MPU6050::setQuaternion(quaternion *q, vector *w, vector *a, float time)
+void MPU6050::setQuaternion(quaternion *q, vector *w, vector *a)
 {
 	//Local variable declaration.
-	float alpha; //Linear interpolation complementary filter weight.
+	float alpha;						//Linear interpolation complementary filter weight.
+	float time;
 	
-	vector g; //Gavity prediction.
-	quaternion qI = quaternion(); //Unit quaternion.
-	quaternion qW = quaternion(); //Integrator quaternion corresponding to rotational velocity.
-	quaternion qA = quaternion(); //Correcting quaternion corresponding to acceleration.
-		
+	vector g;						//Gavity prediction.
+	quaternion qI = quaternion();				//Unit quaternion.
+	quaternion qW = quaternion();				//Integrator quaternion corresponding to rotational velocity.
+	quaternion qA = quaternion();				//Correcting quaternion corresponding to acceleration.
+	time = ((float)_t.getNonResetCount())*0.0625f*64.0f*0.000001f;	//TODO::time calculations in timer class.
+	_t.reset();
+	
 	// Body vector calculations.
 	// These are measurements.
-	qW = q -> multiply(quaternion(pi, *w));
-	*q = q -> sum(qW.multiply(0.5*(float)(t)));
-	q -> norm();
+	qW = q->multiply(quaternion(3.1415f, *w));
+	*q = q->sum(qW.multiply(0.5*time));
+	q->norm();
 	
 	// Quaternion calculation.
 	// Gyroscope integration estimation.
 	// Accelero gravity vector correction.
 	alpha = (float)(!getMovement(&*a, 1.02));		// 2% determined by testing.
-	g  = (q -> conj()).rotate(*a); 				// PREDICTED GRAVITY (Body2World)
+	g  = (q->conj()).rotate(*a); 				// PREDICTED GRAVITY (Body2World)
 	qA = quaternion(sqrt(0.5*(g.z + 1.0)), -g.y/sqrt(2.0*(g.z + 1.0)), g.x/sqrt(2.0*(g.z + 1.0)), 0.0f);
 	qA = (qI.multiply(1 - alpha)).sum(qA.multiply(alpha));	// LERP
 	qA.norm();						// Corrected quaternion.
 	
 	// Total quaternion.
-	*q = q -> cross(qA);
+	*q = q->cross(qA);
 }
 
 /*******************************************************************************
@@ -261,20 +277,20 @@ void MPU6050::setQuaternion(quaternion *q, vector *w, vector *a, float time)
  ******************************************************************************/
 bool MPU6050::getMovement(vector *a, float p)
 {
-  //Local variables.
-  bool movement;
-  float eta;
-
-  //If acc/g-ratio equals greater than p[%]: dynamic flight.
-  //Else: take-off/landing position or hoovering.
-  //Sensitivity depends on p, different for bias/quaternion.
-  //GRAVITY VALUE DEPENDENT ON SENSOR.
-  movement = false;
-  eta = abs((a -> m)/0.91f);
-  if (eta >= p)movement = true;
-
-  //Return movement status.
-  return movement;
+	//Local variables.
+	bool movement;
+	float eta;
+	
+	//If acc/g-ratio equals greater than p[%]: dynamic flight.
+	//Else: take-off/landing position or hoovering.
+	//Sensitivity depends on p, different for bias/quaternion.
+	//GRAVITY VALUE DEPENDENT ON SENSOR.
+	movement = false;
+	eta = abs((a -> m)/0.91f);
+	if (eta >= p)movement = true;
+	
+	//Return movement status.
+	return movement;
 }
 
 /*******************************************************************************
@@ -282,7 +298,7 @@ bool MPU6050::getMovement(vector *a, float p)
  *
  * @return _address The address of the I2C-device.
  ******************************************************************************/
-static uint8_t MPU6050::getAddress()
+uint8_t MPU6050::getAddress()
 {	
-    return _address;
+	return _address;
 }

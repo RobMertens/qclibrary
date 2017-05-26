@@ -5,11 +5,8 @@
  * This file contains functions for the receiver (RX). The signals from the
  * transmitter are measured based on pin change interrupts.
  *
- * TODO::transmitter modes.
- * TODO::channel mapping functions.
  * TODO::calibration functions.
- * TODO::duty cycle calculation.
- * TODO::channel 5 possibility.
+ * TODO::channel 5 functionalities.
  *
  * @author Rob Mertens
  * @version 1.1.1 14/08/2016
@@ -90,11 +87,11 @@ int8_t RX::setMode(rx_mode mode)
 	
 	switch(mode)
 	{
-		case rx_mode::NORMAL:
-			setMode2Normal();
+		case rx_mode::M1:
+			setMode2M1();
 		
-		case rx_mode::INVERTED:
-			setMode2Inverted();
+		case rx_mode::M2:
+			setMode2M2();
 		
 		case rx_mode::NONE:
 		default:
@@ -110,7 +107,7 @@ int8_t RX::setMode(rx_mode mode)
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-void RX::setMode2Normal(void)
+void RX::setMode2M1(void)
 {
 	assignThrottleChannel(0x01);
 	assignRollChannel(0x04);
@@ -121,7 +118,7 @@ void RX::setMode2Normal(void)
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-void RX::setMode2Inverted(void)
+void RX::setMode2M2(void)
 {
 	assignThrottleChannel(0x03);
 	assignRollChannel(0x02);
@@ -342,6 +339,7 @@ uint8_t RX::getExtraChannel()
  ******************************************************************************/
 void RX::interruptServiceRoutine(void)
 {	
+	//Channel 1.
 	if(!(_lastChannel & _ch1) and *_pin & _ch1)
 	{
 		_channel1 = _t.getNonResetCount();
@@ -353,6 +351,7 @@ void RX::interruptServiceRoutine(void)
 		_lastChannel &= (_ch1 ^ 0xFF);
 	}
 	
+	//Channel 2.
 	if(!(_lastChannel & _ch2) and *_pin & _ch2)
 	{
 		_channel2  = _t.getNonResetCount();
@@ -364,6 +363,7 @@ void RX::interruptServiceRoutine(void)
 		_lastChannel &= (_ch2 ^ 0xFF);
 	}
 	
+	//Channel 3.
 	if(!(_lastChannel & _ch3) and *_pin & _ch3)
 	{
 		_channel3  = _t.getNonResetCount();
@@ -375,6 +375,7 @@ void RX::interruptServiceRoutine(void)
 		_lastChannel &= (_ch3 ^ 0xFF);
 	}
 	
+	//Channel 4.
 	if(!(_lastChannel & _ch4) and *_pin & _ch4)
 	{
 		_channel4  = _t.getNonResetCount();

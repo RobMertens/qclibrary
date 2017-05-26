@@ -29,7 +29,7 @@ LED::LED(volatile uint8_t * ddr, uint8_t ddrmsk, volatile uint8_t * pin, volatil
 /*******************************************************************************
  * Method for turning the LED-state on.
  ******************************************************************************/
-void LED::setLed()
+void LED::set()
 {
 	*_port |= _HIGH;
 }
@@ -37,7 +37,7 @@ void LED::setLed()
 /*******************************************************************************
  * Method for turning the LED-state off.
  ******************************************************************************/
-void LED::resetLed()
+void LED::reset()
 {
 	*_port &= _LOW;
 }
@@ -45,7 +45,7 @@ void LED::resetLed()
 /*******************************************************************************
  * Method for turning the LED-state off.
  ******************************************************************************/
-void LED::toggleLed()
+void LED::toggle()
 {
 	*_port ^= 0xFF;
 }
@@ -55,7 +55,7 @@ void LED::toggleLed()
  *
  * @return state The current LED-state (TRUE/FALSE).
  ******************************************************************************/
-bool LED::getLedState()
+bool LED::getState()
 {
 	bool state = false;
 	

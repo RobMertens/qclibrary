@@ -12,7 +12,7 @@
  * @version 1.0.1 14/08/2016
  ******************************************************************************/
 
-#include "math.h"
+#include "vmath.h"
 
 /*******************************************************************************
  * Constructor for a null-vector.
@@ -43,12 +43,11 @@ vector::vector(float x, float y, float z)
 /*******************************************************************************
  *	Method for normalizing the vector as Euclidean norm.
  ******************************************************************************/
-void vector::norm()
+vector vector::norm(void)
 {
-	x /= m;
-	y /= m;
-	z /= m;
-	m = 1.0f;
+	return vector(x/m,
+		      y/m,
+		      z/m);
 }
 
 /*******************************************************************************
@@ -95,7 +94,7 @@ vector vector::multiply(float s)
  * 
  * @return m The magnitude float.
  ******************************************************************************/
-float vector::mag()
+float vector::mag(void)
 {
 	return sqrt(x*x + y*y + z*z);
 }
@@ -174,7 +173,7 @@ quaternion::quaternion(float w, float x, float y, float z)
  * @return m The quaternion magnitude.
 
  ******************************************************************************/
-float quaternion::mag()
+float quaternion::mag(void)
 {
 	return sqrt(w*w + x*x + y*y + z*z);
 }
@@ -182,35 +181,34 @@ float quaternion::mag()
 /*******************************************************************************
  * Method for normalizing the quaternion as Euclidean norm.
  ******************************************************************************/
-void quaternion::norm()
+quaternion quaternion::norm(void)
 {
-	w /= m;
-	x /= m;
-	y /= m;
-	z /= m;
-	m = 1.0f;
+	return quaternion(w/m,
+			  x/m,
+			  y/m,
+			  z/m);
 }
 
 /*******************************************************************************
  * Method for obtaining the conjugate quaternion.
  ******************************************************************************/
-void quaternion::conj()
+quaternion quaternion::conj(void)
 {
-	x *= - 1.0f;
-	y *= - 1.0f;
-	z *= - 1.0f; 
+	return quaternion(w,
+			  x*(-1.0f),
+			  y*(-1.0f),
+			  z*(-1.0f));
 }
 
 /*******************************************************************************
  * Method for obtaining the inverse quaternion.
  ******************************************************************************/
-void quaternion::inv()
+void quaternion::inv(void)
 {
-	w /= m;
-	x /= -(1.0f*m);
-	y /= -(1.0f*m);
-	z /= -(1.0f*m);
-	m = mag();
+	return quaternion(w/m,
+			  x/=(-1.0f*m),
+			  y/=(-1.0f*m),
+			  z/=(-1.0f*m));
 }
 
 /*******************************************************************************
@@ -284,7 +282,7 @@ vector quaternion::rotate(vector v)
  * 
  * @return result The result vector.
  ******************************************************************************/
-vector quaternion::q2euler()
+vector quaternion::q2euler(void)
 {
 	return vector(atan2(2*(w*x + y*z), w*w - x*x - y*y + z*z),
 		      asin(2*(w*y - x*z)),

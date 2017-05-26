@@ -1,5 +1,5 @@
-#ifndef _MATH_H_
-#define _MATH_H_
+#ifndef _QCMATH_H_
+#define _QCMATH_H_
 
 class vector
 {
@@ -15,10 +15,10 @@ class vector
 		vector(float, float, float);
 
 		//Setters ********************************************************************
-		void norm();
+		vector norm(void);
 
 		//Getters ********************************************************************
-		float mag();
+		float mag(void);
 		float dot(vector);
 
 		vector sum(vector);
@@ -46,12 +46,12 @@ class quaternion
 		quaternion(float, float, float, float);
 
 		//Setters ********************************************************************
-		void norm();
-		void conj();
-		void inv();
+		quaternion norm(void);
+		quaternion conj(void);
+		quaternion inv(void);
 
 		//Getters ********************************************************************     
-		float mag();
+		float mag(void);
 		float dot(quaternion);    
 		
 		quaternion sum(quaternion);
@@ -59,7 +59,7 @@ class quaternion
 		quaternion cross(quaternion); //Quaternion cross product.
 
 		vector rotate(vector);
-		vector q2euler();
+		vector q2euler(void);
 
 	private:
 

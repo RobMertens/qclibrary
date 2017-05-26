@@ -25,7 +25,7 @@ int main(void)
 	//Initialize.
 	Serial.begin(9600);
 	
-	rec.initialize(rx_mode::NORMAL);
+	rec.initialize(rx_mode::M1);
 	
 	//Run motors.
 	for(;;)

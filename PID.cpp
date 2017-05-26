@@ -83,6 +83,15 @@ void PID::setDirection(int direction)
 }
 
 /*******************************************************************************
+ * Method for resetting the PID-controller.
+ ******************************************************************************/
+void PID::reset()
+{
+	_iterm = 0.0;
+	_lastError = 0.0;
+}
+
+/*******************************************************************************
  * Method for calculating the output of the controller.
  * 
  * @param input The current input value.
@@ -94,13 +103,11 @@ float PID::calculate(float input, float desired)
 	_desired = desired;
 
 	float error = _input - _desired;
-	_iterm += _ki * error;
-	if	   (_iterm > _maxLimit)_iterm = _maxLimit;
-	else if(_iterm < _minLimit)_iterm = _minLimit;
+	_iterm += _ki*error;
 
-	_output = _kp * error + _iterm * error + _kd * (error - _lastError);
-	if		(_output > _maxLimit)_output = _maxLimit;
-	else if (_output < _minLimit)_output = _minLimit;
+	_output = _kp*error + _iterm*error + _kd*(error - _lastError);
+	if(_output > _maxLimit)_output = _maxLimit;
+	else if(_output < _minLimit)_output = _minLimit;
 	_output *= _direction;
 	_lastError = error;
 
