@@ -3,12 +3,14 @@
 
 #include <stdint.h>
 #include "math.h"
-#include "vmath.h"
-#include "MPU6050.h"
-#include "PID.h"
-#include "RX.h"
-#include "ESC.h"
-#include "LED.h"
+#include "settings.h"
+#include "timer16.h"
+#include "src/vmath.h"
+#include "src/MPU6050.h"
+#include "src/PID.h"
+#include "src/RX.h"
+#include "src/ESC.h"
+#include "src/LED.h"
 
 enum class c_mode : uint8_t
 {
@@ -30,30 +32,47 @@ class controller
 {
 	public:
 		//Constructors ***************************************************************
-		controller(c_layout);
+		controller(c_layout, float=0.04);
 
 		//Setters ********************************************************************
-		update();
+		void update(void);
+		void measure(void);
+		void receive(void);
+		void enableMotors(void);
+		void driveMotors(void);
+		void disableMotors(void);
 		
 		//Getters ********************************************************************
-			
+		float getLooptime(void);
+		vector getState(void);
+		quaternion getAttitude(void);
+		vector getAttitude(void);
+		vector getOmega(void);
+		vector getLocalAcceleration(void);
+		vector getLocalVelocity(void);
+		vector getGlobalAcceleration(void);
+		vector getGlobalCompensatedAcceleration(void);
+		vector getGlobalVelocity(void);
+		vector getGlobalPosition(void);
 		
 	private:
 		// Hardware components
-		ESC _esc1();
-		ESC _esc2();
-		ESC _esc3();
-		ESC _esc4();
+		ESC * _esc1;
+		ESC * _esc2;
+		ESC * _esc3;
+		ESC * _esc4;
 		
-		PID _pidRoll;
-		PID _pidPitch;
-		PID _pidYaw;
+		PID * _pidRoll;
+		PID * _pidPitch;
+		PID * _pidYaw;
 		
-		RX _rec();
+		RX * _rec;
 		
-		MPU6050 _imu();
+		MPU6050 * _imu;
 		
-		LED _led();
+		timer16 _watchdog;		//Watchdog timer for checking calculations time.
+		
+		float _looptime;
 		
 		// State vectors
 		static const vector _unitX = vector(1.0, 0.0, 0.0);
@@ -102,6 +121,13 @@ class controller
 		float _dcEsc2;
 		float _dcEsc3;
 		float _dcEsc4;
+		
+		float _dcDeadband;
+		float _dcDeadbandLowerBoundary;
+		float _dcDeadbandUpperBoundary;
+		
+		//
+		vector getFeedbackDc(void);
 		
 };
 #endif

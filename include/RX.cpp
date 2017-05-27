@@ -18,7 +18,7 @@
  * Constructor for the ESC-class. By making an object with this constructor
  * all local variables are set together with the avr-timer.
  ******************************************************************************/
-RX::RX(volatile uint8_t * pcmskx, uint8_t pcint, uint16_t periodMicrosecond, uint16_t maxMicrosecond, uint16_t minMicrosecond)
+RX::RX(volatile uint8_t * pcmskx, uint8_t pcint, t_alias alias, uint16_t periodMicrosecond, uint16_t maxMicrosecond, uint16_t minMicrosecond)
 {	
 	_pcmskx = pcmskx;							// Pass trough the Pin Change Mask Register to local variable.
 	if(_pcmskx==PCMSK0)
@@ -55,7 +55,7 @@ RX::RX(volatile uint8_t * pcmskx, uint8_t pcint, uint16_t periodMicrosecond, uin
     		} 
 	}
 	
-	_t	= timer8(t_alias::T2);						// TIMER2.
+	_t	= timer8(alias);						// TIMER2.
 	
 	_periodMicroseconds = periodMicrosecond;
 	_maxRxCycle = maxMicrosecond/periodMicrosecond;

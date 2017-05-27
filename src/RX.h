@@ -11,7 +11,6 @@ extern "C" void PCINT1_vect(void) __attribute__ ((signal));
 extern "C" void PCINT2_vect(void) __attribute__ ((signal));
 extern "C" void PCINT3_vect(void) __attribute__ ((signal));
 
-//TODO::move this.
 enum class rx_mode : uint8_t
 {
 	NONE = 0,
@@ -24,7 +23,7 @@ class RX : public interrupt::handler
 
   	public:
 	  	//Constructors ***************************************************************
-	    	RX(volatile uint8_t *, uint8_t, uint16_t=4000, uint16_t =2000, uint16_t=1000);
+	    	RX(volatile uint8_t *, uint8_t, t_alias, uint16_t=4000, uint16_t =2000, uint16_t=1000);
 	    
 	    	//Setters ********************************************************************
 	   	void initialize(rx_mode);
