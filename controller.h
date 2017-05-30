@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "math.h"
 #include "settings.h"
+#include "timer8.h"
 #include "timer16.h"
 #include "src/vmath.h"
 #include "src/MPU6050.h"
@@ -32,20 +33,32 @@ class controller
 {
 	public:
 		//Constructors ***************************************************************
-		controller(c_layout, float=0.04);
+		controller(MPU6050, RX, PID, PID, PID, ESC, ESC, ESC, ESC, c_layout, t_alias, float=0.04);
 
 		//Setters ********************************************************************
+		void initialize(void);
 		void update(void);
-		void measure(void);
-		void receive(void);
-		void enableMotors(void);
+		
+		void updateReceiverData(void);
+		void updateDesiredAttitude(void);
+		void updateSafetyState(void);
+		void updateRawData(void)
+		void updateLocalData(void)
+		void updateActualAttitude(void)
+		void updateWorldData();
+		void updateOutputs(void);
 		void driveMotors(void);
-		void disableMotors(void);
+		void resetOutputs(void);
+		void stopMotors(void);
+		void enableMotors(void);
+		void disableMotors(void)
 		
 		//Getters ********************************************************************
+		bool getMovement(float p)
 		float getLooptime(void);
+		
 		vector getState(void);
-		quaternion getAttitude(void);
+		/**quaternion getAttitude(void);
 		vector getAttitude(void);
 		vector getOmega(void);
 		vector getLocalAcceleration(void);
@@ -53,7 +66,10 @@ class controller
 		vector getGlobalAcceleration(void);
 		vector getGlobalCompensatedAcceleration(void);
 		vector getGlobalVelocity(void);
-		vector getGlobalPosition(void);
+		vector getGlobalPosition(void);*/
+		
+		int8_t monitorBattery(void)
+		int8_t getSafetyState(void)
 		
 	private:
 		// Hardware components
@@ -67,6 +83,7 @@ class controller
 		PID * _pidYaw;
 		
 		RX * _rec;
+		rx_mode _rxm;
 		
 		MPU6050 * _imu;
 		
@@ -78,56 +95,55 @@ class controller
 		static const vector _unitX = vector(1.0, 0.0, 0.0);
 		static const vector _unitY = vector(0.0, 1.0, 0.0);
 		static const vector _unitZ = vector(0.0, 0.0, 1.0);
-			
-		vector _thetaLocal; 		//True angles w.r.t. Euler by integrating factors.
-		vector _omegaLocal;
 		
+		vector _omegaRaw;
+		vector _accelRaw;
+		
+		vector _omegaLocal;
 		vector _accelLocal;
+		
+		quaternion _qDes;		//Desired attitude/orientation quaternion.
+		quaternion _qAtt;		//Actual attitude/orientation quaternion.
+		quaternion _qEst;		//Estimated orientation quaternion.
+		quaternion _qCorr;		//Correction quaternion.
+		vector _eulerZXY; 		//RPY angles.
+		
 		vector _accelWorld;
 		vector _accelWorldGravityCompensated;
-		
-		vector _eulerZXY; 		//RPY angles.
-		quaternion _qAtt;
 		
 		static const float _maxRoll  = 0.78539816339;
 		static const float _maxPitch = 0.78539816339;
 		static const float _maxYaw   = 6.28318530718;
+		static const quaternion _qI = quaternion(); //Unit quaternion.
+		static const vector _maxRPS = vector(200.0, 200.0, 200.0);
+		
 		// Config.
 		c_layout _layout;
 		
 		// Safety state.
-		// State | Meaning
-		// ------|--------
-		//   3   | Nearly non-flying stick position.
-		//   2   | Flying.
-		//   1   | Nearly flying stick position.
-		//   0   | Non-flying.
-		//  -1   | Alarm.
 		int8_t _safety;
 		
 		// Control.
-		float _dcDesiredThrottle;
-		float _dcDesiredRoll;
-		float _dcDesiredPitch;
-		float _dcDesiredYaw;
+		float  _desiredThrottleDc;
+		vector _desiredThetaDc();
+		vector _desiredThetaRad();
+		vector _desiredOmegaRPS();
+		vector _desiredOmegaDc();
+				
+		float _esc1Dc;
+		float _esc2Dc;
+		float _esc3Dc;
+		float _esc4Dc;
 		
-		// Control.
-		float _dcOutputThrottle;
-		float _dcOutputRoll;
-		float _dcOutputPitch;
-		float _dcOutputYaw;
-		
-		float _dcEsc1;
-		float _dcEsc2;
-		float _dcEsc3;
-		float _dcEsc4;
-		
-		float _dcDeadband;
-		float _dcDeadbandLowerBoundary;
-		float _dcDeadbandUpperBoundary;
+		float _dbDc;
+		float _maxDbDc;
+		float _minDbDc;
 		
 		//
 		vector getFeedbackDc(void);
+		
+		void setQuaternion(quaternion *, vector *, vector *);
+		bool getMovement(vector *, float);
 		
 };
 #endif

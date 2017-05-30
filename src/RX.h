@@ -82,7 +82,7 @@ class RX : public interrupt::handler
 		
 		uint8_t _lastChannel;
 		
-		float rxc2dc(float);
+		float rxc2dc(float, float);
 		
 		void setMode2M1(void);
 		void setMode2M2(void);

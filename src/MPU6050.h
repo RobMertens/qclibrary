@@ -5,6 +5,7 @@
 #include "vmath.h"
 #include "settings.h"
 #include "timer8.h"
+#include "timer16.h"
 
 class MPU6050
 {
@@ -19,16 +20,15 @@ class MPU6050
 		void initialize();
 		void calibrate();
 		
-		void setBias(vector*); 
-		void setGyroscope(vector *, vector *); 
-		void setAccelero(vector *);
-		void setQuaternion(quaternion *, vector *, vector *);
+		void setGyroscopeBias(); 
+		void updateGyroscope(vector *); 
+		void updateAccelero(vector *);
 		
 		/* Getters ************************************************************/
+		uint8_t getAddress();
 		int8_t setGyroscopeScale(uint8_t);
 		int8_t setAcceleroScale(uint8_t);
-		bool getMovement(vector *, float);
-		uint8_t getAddress();
+		vector getGyroscopeBias();
 		
   	private:
   		/* Declarations *******************************************************/
@@ -44,10 +44,11 @@ class MPU6050
 		const uint8_t * _gyrdata;
 		const uint8_t * _accdata;
 		
+		//Gyroscope bias.
+		vector _b;
+		
 		timer8 _t;
-		
-		void setRegisters(void);
-		
+		//timer16 _t;		
 };
 #endif
 

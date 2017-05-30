@@ -1,27 +1,6 @@
 /******************************************************************************
  * Quadcopter-Library-v1
  * controller.cpp
- *
- ******************************************************************************
- *	       TOP-VIEW				    BOTTOM-VIEW
- *
- *	y_plus	  y_cross    x_plus     	y_plus	  y_cross    x_plus
- *      \ 	  |	    /			\ 	  |	    /
- *
- * 	/ 2 \   front   / 1 \			/ 2 \   front   / 1 \
- * 	\cw /           \ccw/			\ccw/           \cw /
- * 	   |::.........::|   			   |::.........::|   
- * 	 l   |:       :|   r			 l   |:       :|   r
- * 	 e    |:     :|    i			 e    |:     :|    i
- * 	 f     |::+::|     g	-x_cross	 f     |::+::|     g	-x_cross
- * 	 t    |:     :|    h			 t    |:     :|    h
- * 	     |:       :|   t			     |:       :|   t
- * 	   |::.........::|			   |::.........::|
- * 	/ 3 \           / 4 \			/ 3 \           / 4 \
- * 	\ccw/   rear    \cw /			\cw /   rear    \ccw/
- * 
- *		
- ******************************************************************************
  * 
  * @author:	Rob Mertens
  * @date:	14/08/2016
@@ -33,33 +12,14 @@
 /*******************************************************************************
  * Constructor for the controller-class.
  ******************************************************************************/
-controller::controller(c_layout layout, t_alias alias, float deadband)
-{
-	//ESCs.
-	*_esc1 = ESC(t_alias::T1, t_channel::B, 4000, 2000, 700);
-	*_esc2 = ESC(t_alias::T3, t_channel::B, 4000, 2000, 700);
-	*_esc3 = ESC(t_alias::T1, t_channel::C, 4000, 2000, 700);
-	*_esc4 = ESC(t_alias::T3, t_channel::C, 4000, 2000, 700);
-	
-	//Deadband.
-	_dcDeadband = deadband;
-	_dcDeadbandUpperBoundary = 0.5 - 0.5*_dcDeadBand;
-	_dcDeadbandLowerBoundary = 0.5 + 0.5*_dcDeadBand;
-
-	//Deadband.
-	_watchdog = timer16(alias);
-}
-
-/*******************************************************************************
- * Constructor for the controller-class.
- ******************************************************************************/
-controller::controller(MPU6050 imu, RX rec, PID pidRoll, PID pidPitch, PID pidYaw, ESC esc1, ESC esc2, ESC esc3, ESC esc4, c_layout layout, t_alias alias, float deadband)
+controller::controller(MPU6050 imu, RX rec, rx_mode rxm, PID pidRoll, PID pidPitch, PID pidYaw, ESC esc1, ESC esc2, ESC esc3, ESC esc4, c_layout layout, t_alias alias, float deadband)
 {
 	//MPU.
 	_imu = &imu;
 	
 	//REC.
 	_rec = &rec;
+	_rxm = rxm;
 	
 	//PID.
 	_pidRoll  = &pidRoll;
@@ -73,21 +33,30 @@ controller::controller(MPU6050 imu, RX rec, PID pidRoll, PID pidPitch, PID pidYa
 	_esc4 = &esc4;
 	
 	//Deadband.
-	_dcDeadband = deadband;
-	_dcDeadbandUpperBoundary = 0.5 - 0.5*_dcDeadBand;
-	_dcDeadbandLowerBoundary = 0.5 + 0.5*_dcDeadBand;
+	_dbDc = deadband;
+	_maxDbDc = 0.5 + 0.5*deadband;
+	_minDbDc = 0.5 - 0.5*deadband;
 
 	//Deadband.
-	_watchdog = timer16(alias);
+	_watchdog = timer16(alias);						//TODO::both 8- and 16-bitness. -> inheritance timer-class.
 }
 
 /*******************************************************************************
- * Constructor for the controller-class.
+ * 
  ******************************************************************************/
-controller::initialize()
+void controller::initialize()
 {
+	//SENSOR.
+	_imu->initialize();
+	
+	//RX.
+	_rec->initialize(_rxm);
+	
+	//PIDs.
+	//Nothing.
+	
 	//ESCs.
-	_esc1->arm();					//Stardard settings for 4µs.
+	_esc1->arm();								//Stardard settings for 4µs.
 	_esc2->arm();
 	_esc3->arm();
 	_esc4->arm();					
@@ -98,91 +67,359 @@ controller::initialize()
 }
 
 /*******************************************************************************
+ * Update method of the controller. This method sequentially handles the next
+ * functions:
+ * (1) Update & process receiver inputs.
+ * (2) Update & process sensor inputs.
+ * (3) Monitor the quadcopters' safety state.
+ * (4) PID feedback control.
+ * (5) Drive the motors according to safety state.
+ * (6) Additional functions.
  * 
+ * TODO::measurement update threading. However, threading cannot be done properly
+ * with an arduino I guess -> research.
  ******************************************************************************/
 void controller::update(void)
 {
-	//Timer.
-	_watchdog.reset();
+	//Update receiver inputs.
+	updateReceiverData();
 	
 	//Update measurements.
-	measure();
+	updateRawData();
+	updateLocalData();
+	updateActualAttitude();
+	updateWorldData();
 	
-	//Update receiver inputs.
-	receive();
+	//Quadcopter safety state.
+	updateSafetyState();							//This requires receiver data.
 	
 	//Flying.
-	enableMotors();
-	if(_safety==0x02)driveMotors();
+	if(_safety==0x02)
+	{
+		updateOutputs();
+		driveMotors();
+	}
 	
 	//Non-flying.
-	disableMotors();
-	
+	if(_safety==0x00)
+	{
+		resetOutputs();							//Reset PID-controllers.
+		stopMotors();
+	}
+		
 	//Get calculations time.
 	//Debugging purposes.
-	_looptime = _watchdog.getNonResetCount();
+	_looptime = _watchdog.getNonResetCount()*0.0625f*64.0f*0.000001f;	//TODO::time calculations in timer class.
+	_watchdog.reset();							//This should be calculated at loop start.
 }
 
 /*******************************************************************************
- * 
+ * Method for updating the receiver input. The input is given in duty cycles.
  ******************************************************************************/
-void controller::measure(void)
+void controller::updateReceiverData(void)
+{
+	float desiredRollDc = 0.0;
+	float desiredPitchDc = 0.0;
+	float desiredYawDc = 0.0;
+	
+	//Create some margin for throttle.
+	_desiredThrottleDc = _rec->getThrottleChannel();
+	
+	//RPY angles in duty cycle [%].
+	_desiredThetaDc = vector(_rec->getRollChannel(),
+				 _rec->getPitchChannel(),
+				 _rec->getYawChannel());
+	
+	//Introduce some deadband.
+	if(_desiredThetaDc.y < _minDbDc or _desiredThetaDc.y > _maxDbDc)
+	{
+		desiredRollRad  = _desiredThetaDc.y*_maxRoll;
+	
+	if(_desiredThetaDc.x < _minDbDc or _desiredThetaDc.x > _maxDbDc)
+	{
+		desiredPitchRad = _desiredThetaDc.x*_maxPitch;
+	}
+	if(_desiredThetaDc.z < _minDbDc or _desiredThetaDc.z > _maxDbDc)
+	{
+		desiredYawRad   = _desiredThetaDc.z*_maxYaw;
+	}
+	
+	//RPY angles in radians [rad].
+	_desiredThetaRad = vector(desiredRollRad,
+				  desiredPitchRad,
+				  desiredYawRad);
+}
+
+/*******************************************************************************
+ * Method for 
+ ******************************************************************************/
+void controller::updateDesiredAttitude(void)
+{
+	//Create temporary quaternions.
+	quaternion qRoll();
+	quaternion qPitch();
+	quaternion qYaw();
+	
+	//Consequtive quaternion rotations.
+	qRoll  = quaterion(_desiredRollRad,  _unitY);
+	qPitch = quaterion(_desiredPitchRad, _unitX);
+	qYaw   = quaterion(_desiredYawRad,   _unitZ);
+	
+	//Desired quaternion.
+	_qDes  = qYaw.cross(qPitch.cross(qRoll));
+}
+
+/*******************************************************************************
+ * Method for updating the safety state.
+ *
+ * State | Meaning
+ * ------|--------
+ *   3   | Nearly non-flying stick position.
+ *   2   | Flying.
+ *   1   | Nearly flying stick position.
+ *   0   | Non-flying.
+ *  -1   | Alarm.
+ ******************************************************************************/
+void controller::updateSafetyState(void)
+{
+	//Make sure the throttle stick is placed in the left-bottom position.
+	if(_safety==0x00 and _desiredThrottleDc < 0.05 and _desiredYawDc < 0.05)
+	{
+		_safety = 0x01;
+	}
+	//Make sure the throttle stick is placed back in the centre-bottom position.
+	else if(_safety==0x01 and _desiredThrottleDc < 0.05 and _desiredYawDc > 0.45 and _desiredYawDc < 0.55)
+	{
+		_safety = 0x02;
+	}
+	//Make sure the throttle stick is placed in the left-bottom corner.
+	else if(_safety==0x02 and _desiredThrottleDc < 0.05 and _desiredYawDc > 0.95)
+	{
+		_safety = 0x03;
+	}
+	//Make sure the throttle stick is placed back in the centre-bottom position.
+	else if(_safety==0x03 and _desiredThrottleDc < 0.05 and _desiredYawDc > 0.45 and _desiredYawDc < 0.55)
+	{
+		_safety &= 0x00;
+	}
+	//
+	else
+	{
+		//TODO::alarm state.
+	}
+}
+
+/*******************************************************************************
+ * Method for obtaining all data from the sensors.
+ * 
+ * TODO::add more sensors.
+ ******************************************************************************/
+void controller::updateRawData(void)
 {
 	//Update accelero.
-	_imu->setAccelero(&_rawAccel);
-	_bodyAccel = _bodyAccel.multiply(0.9f).sum(_rawAccel.multiply(0.1f));
+	_imu->updateAccelero(&_accelRaw);
 	
 	//Update gyro.
-	if (!_imu->getMovement(&_bodyAccel, 1.02))_imu->setBias(&_rawBias); 	//Update bias if not moving.
-	_imu->setGyroscope(&_rawOmega, &_rawBias);
-	_bodyOmega  = _rawOmega;
-	
-	//Update rotation quaternion.
-	_imu->setQuaternion(&_qAtt, &_bodyOmega, &_bodyAccel);
-	
-	//Update world vectors.
-	_worldAccel = (_qAtt.conj()).rotate(_bodyAccel);
-	_worldAccel.z -= 0.91f;
+	if(_safety!=0x02)_imu->setBias();	 				//Update bias if not flying.
+	_imu->updateGyroscope(&_omegaRaw);
 	
 	//Battery volage.
 	//TODO::
 }
 
 /*******************************************************************************
+ * Method for processing all data from the sensors.
+ * 
+ * TODO::add more sensors.
+ ******************************************************************************/
+void controller::updateLocalData(void)
+{
+	//Update gyro.
+	_bodyOmega  = _rawOmega;
+	
+	//Update accelero.
+	_bodyAccel = _bodyAccel.multiply(0.9f).sum(_rawAccel.multiply(0.1f));	//Complementary filter for noise.
+	
+	//Battery volage.
+	//TODO::
+}
+
+/*******************************************************************************
+ * Method for determining the attitude quaternion. Source: "Keeping a Good
+ * Attitude: A Quaternion-Based Orientation Filter for IMU's and MARG's".
+ ******************************************************************************/
+void controller::updateActualAttitude(void)
+{
+	//Local variable declaration.
+	float alpha;								//Linear interpolation complementary filter weight.
+	vector worldGravityEst;							//Gavity prediction.
+	quaternion qDiff;							
+	
+	//Gyroscope integration estimation.
+	qDiff = _qAtt.multiply(quaternion(3.1415f, _bodyOmega));
+	_qEst  = _qAtt.sum(qDiff.multiply(0.5*_looptime));			//Integrate rotational velocity with looptime.
+	_qEst.norm();
+	
+	//Accelero gravity vector correction.
+	alpha = (float)(!getMovement(1.02));			// 2% determined by testing.
+	worldGravityEst  = (_qAtt.conj()).rotate(_bodyAccel);			// PREDICTED GRAVITY (Body2World)
+	_qCorr = quaternion( sqrt(0.5*(worldGravityEst.z + 1.0)			 ),
+			    -worldGravityEst.y/sqrt(2.0*(worldGravityEst.z + 1.0)),
+			     worldGravityEst.x/sqrt(2.0*(worldGravityEst.z + 1.0)),
+			     0.0f						 );
+	_qCorr = (_qI.multiply(1 - alpha)).sum(_qCorr.multiply(alpha));		// LERP
+	_qCorr.norm();								// Corrected quaternion.
+	
+	//Magnetic correction for yaw-angle.
+	//Not available on MPU6050.
+	//Extra sensor.
+	
+	//Total quaternion.
+	_qAtt = _qEst->cross(_qCorr);
+	
+	//Euler representation.
+	_eulerZXY = _qAtt.q2euler();
+}
+
+/*******************************************************************************
+ * Method for determining if the quadcopter is moving or not.
+ * The total acceleration is compared w/ gravity.
+ * 
+ * DO NOT USE A GRAVITY CORRECTED ACCELERATION VECTOR.
+ *
+ * @param: p The user-defired comparision percentage, e.g.: 1,02.
+ ******************************************************************************/
+bool controller::getMovement(float p)
+{
+	//Local variables.
+	bool movement;
+	float eta;
+	
+	//If acc/g-ratio equals greater than p[%]: dynamic flight.
+	//Else: take-off/landing position or hoovering.
+	//Sensitivity depends on p, different for bias/quaternion.
+	//GRAVITY VALUE DEPENDENT ON SENSOR.
+	movement = false;
+	eta = abs((_bodyAccel.m)/0.91f);					//TODO::determine gravity vector at stand-still, like gyro bias.
+	if (eta >= p)movement = true;
+	
+	//Return movement status.
+	return movement;
+}
+
+/*******************************************************************************
  * 
  ******************************************************************************/
-void controller::receive(void)
+void controller::updateWorldData();
 {
-	//Receiver channels.
-	_dcDesiredThrottle = _rec->getThrottleChannel();
-	_dcDesiredRoll     = _rec->getRollChannel();
-	_dcDesiredPitch    = _rec->getPitchChannel();
-	_dcDesiredYaw      = _rec->getYawChannel();
+	//World.
+	_accelWorld = (_qAtt.conj()).rotate(_accelLocal);
+	
+	//Compensate for gravity.
+	_accelWorldGravityCompensated = _accelWorld;
+	_accelWorldGravityCompensated.z -= 0.91f;
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::updateOutputs(void)
+{
+	
+	//Calculate PID rotational velocity outputs [rad/s].
+	_desiredOmegaRPS  = vector(_pidRoll->calculate(_qAtt.y,  _qDes.y),
+				   _pidPitch->calculate(_qAtt.x, _qDes.x),
+				   _pidYaw->calculate(_qAtt.z,   _qDes.z));
+	
+	//Transform back to duty cycle [%].
+	_desiredOmegaDc  = vector(_desiredOmegaRPS.x/(_maxRPS.x*pi/180),
+				  _desiredOmegaRPS.y/(_maxRPS.y*pi/180),
+				  _desiredOmegaRPS.z/(_maxRPS.z*pi/180));
+	
+	//Do calculations based on structure.
+	//TODO::add more structures.
+	switch(_layout)
+	{
+		case(c_layout::CROSS):
+			_esc1Dc = _desiredThrottleDc - _desiredOmegaDc.x + _desiredOmegaDc.y - _desiredOmegaDc.z;
+			_esc2Dc = _desiredThrottleDc + _desiredOmegaDc.x + _desiredOmegaDc.y + _desiredOmegaDc.z;
+			_esc3Dc = _desiredThrottleDc + _desiredOmegaDc.x - _desiredOmegaDc.y - _desiredOmegaDc.z;
+			_esc4Dc = _desiredThrottleDc - _desiredOmegaDc.x - _desiredOmegaDc.y + _desiredOmegaDc.z;
+			break;
+		
+		case(c_layout::PLUS):
+			_esc1Dc = _desiredThrottleDc - _desiredOmegaDc.x - _desiredOmegaDc.z;
+			_esc2Dc = _desiredThrottleDc + _desiredOmegaDc.y + _desiredOmegaDc.z;
+			_esc3Dc = _desiredThrottleDc + _desiredOmegaDc.x - _desiredOmegaDc.z;
+			_esc4Dc = _desiredThrottleDc - _desiredOmegaDc.y + _desiredOmegaDc.z;
+			break;
+			
+		case(c_layout::NONE):
+		default:
+			;;
+			break;
+	}
+	
+	//Compensate voltage drop.
+	//if (battery_voltage < 1240 && battery_voltage > 800)
+	//{
+	//	_esc1Dc += _esc1Dc * ((1240 - battery_voltage)/(float)3500);
+	//	_esc2Dc += _esc2Dc * ((1240 - battery_voltage)/(float)3500);
+	//	_esc3Dc += _esc3Dc * ((1240 - battery_voltage)/(float)3500);
+	//	_esc4Dc += _esc4Dc * ((1240 - battery_voltage)/(float)3500);
+	//}
+	
+	//Check duty cycle limits.
+	if(_esc1Dc > 1.0)_esc1Dc = 1.0;
+	else if(_esc1Dc < 0.1)_esc1Dc = 0.1;
+	if(_esc2Dc > 1.0)_esc2Dc = 1.0;
+	else if(_esc2Dc < 0.1)_esc1Dc = 0.1;
+	if(_esc3Dc > 1.0)_esc3Dc = 1.0;
+	else if(_esc3Dc < 0.1)_esc3Dc = 0.1;
+	if(_esc4Dc > 1.0)_esc4Dc = 1.0;
+	else if(_esc4Dc < 0.1)_esc4Dc = 0.1;
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::driveMotors(void)
+{	
+	// Write motor speed.
+	_esc1->writeSpeed(_esc1Dc);
+	_esc2->writeSpeed(_esc2Dc);
+	_esc3->writeSpeed(_esc3Dc);
+	_esc4->writeSpeed(_esc4Dc);
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::resetOutputs(void)
+{
+	_pidRoll->reset();
+	_pidPitch->reset();
+	_pidYaw->reset();
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::stopMotors(void)
+{	
+	//Stop the motors at low speed.
+	_esc1->writeSpeed(0.0);
+	_esc2->writeSpeed(0.0);
+	_esc3->writeSpeed(0.0);
+	_esc4->writeSpeed(0.0);
 }
 
 /*******************************************************************************
  * 
  ******************************************************************************/
 void controller::enableMotors(void)
-{
-	// Make sure the throttle stick is placed in the left-bottom position.
-	if(_dcDesiredThrottle < 0.05 and _dcDesiredYaw < 0.05)
-	{
-		_safety = 0x01;
-	}
-	
-	// Make sure the throttle stick is placed back in the centre-bottom position.
-	if(_safety==0x01 and _dcDesiredThrottle < 0.05 and _dcDesiredYaw > 0.45 and _dcDesiredYaw < 0.55)
-	{
-		// Increase safety state.
-		_safety = 0x02;
-		
-		// Start the motors at low speed.
-		_esc1->writeSpeed(0.1);
-		_esc2->writeSpeed(0.1);
-		_esc3->writeSpeed(0.1);
-		_esc4->writeSpeed(0.1);
-	}
+{	
+	//TODO::
 }
 
 /*******************************************************************************
@@ -190,161 +427,34 @@ void controller::enableMotors(void)
  ******************************************************************************/
 void controller::disableMotors(void)
 {	
-	// Make sure the throttle stick is placed in the left-bottom corner.
-	if(_safety==0x02 and _dcDesiredThrottle < 0.05 and _dcDesiredYaw > 0.95)
-	{
-		_safety = 0x03;
-	}
-	
-	// Make sure the throttle stick is placed back in the centre-bottom position.
-	if(_safety==0x03 and _dcDesiredThrottle < 0.05 and _dcDesiredYaw > 0.45 and _dcDesiredYaw < 0.55)
-	{
-		// Reset safety state.
-		_safety &= 0x00;
-		
-		// Stop the motors.
-		_esc1->writeSpeed(0.0);
-		_esc2->writeSpeed(0.0);
-		_esc3->writeSpeed(0.0);
-		_esc4->writeSpeed(0.0);
-	}
+	//TODO::
 }
 
 /*******************************************************************************
  * 
  ******************************************************************************/
-void controller::driveMotors(void)
-{
-	vector dcOutput;
-	
-	float dcEsc1;
-	float dcEsc2;
-	float dcEsc3;
-	float dcEsc4;
-	
-	//PID feedback output in duty cycle.
-	dcOutput = getFeedbackDc();
-	
-	//TODO::Map max throttle to 80% instead of 100%.
-	if (_dcDesiredThrottle > 0.8)_dcDesiredThrottle=0.8;
-	
-	//Do calculations based on structure.
-	//TODO::add more structures.
-	switch(_layout)
-	{
-		case(c_layout::CROSS):
-			dcEsc1 = _dcDesiredThrottle - dcOutput.x + dcOutput.y - dcOutput.z;
-			dcEsc2 = _dcDesiredThrottle + dcOutput.x + dcOutput.y + dcOutput.z;
-			dcEsc3 = _dcDesiredThrottle + dcOutput.x - dcOutput.y - dcOutput.z;
-			dcEsc4 = _dcDesiredThrottle - dcOutput.x - dcOutput.y + dcOutput.z;
-		
-		case(c_layout::PLUS):
-			dcEsc1 = _dcDesiredThrottle - dcOutput.x - dcOutput.z;
-			dcEsc2 = _dcDesiredThrottle + dcOutput.y + dcOutput.z;
-			dcEsc3 = _dcDesiredThrottle + dcOutput.x - dcOutput.z;
-			dcEsc4 = _dcDesiredThrottle - dcOutput.y + dcOutput.z;
-			
-		case(c_layout::NONE):
-		default:
-			;;
-	}
-	//Compensate voltage drop.
-	//if (battery_voltage < 1240 && battery_voltage > 800)
-	//{
-	//	dcEsc1 += dcEsc1 * ((1240 - battery_voltage)/(float)3500);
-	//	dcEsc2 += dcEsc2 * ((1240 - battery_voltage)/(float)3500);
-	//	dcEsc3 += dcEsc3 * ((1240 - battery_voltage)/(float)3500);
-	//	dcEsc4 += dcEsc4 * ((1240 - battery_voltage)/(float)3500);
-	//}
-	
-	//Check duty cycle limits.
-	if(dcEsc1 > 1.0)dcEsc1 = 1.0;
-	if(dcEsc2 > 1.0)dcEsc2 = 1.0;
-	if(dcEsc3 > 1.0)dcEsc3 = 1.0;
-	if(dcEsc4 > 1.0)dcEsc4 = 1.0;
-	if(dcEsc1 < 0.1)dcEsc1 = 0.1;
-	if(dcEsc2 < 0.1)dcEsc1 = 0.1;
-	if(dcEsc3 < 0.1)dcEsc3 = 0.1;
-	if(dcEsc4 < 0.1)dcEsc4 = 0.1;
-	
-	// Write motor speed.
-	_esc1->writeSpeed(dcEsc1);
-	_esc2->writeSpeed(dcEsc2);
-	_esc3->writeSpeed(dcEsc3);
-	_esc4->writeSpeed(dcEsc4);
-}
-
-/*******************************************************************************
- * 
- ******************************************************************************/
-vector controller::getFeedbackDc(void)
-{
-	// Allocate memory.
-	float roll  = 0.0;
-	float pitch = 0.0;
-	float yaw   = 0.0;
-	
-	quaternion qRoll();
-	quaternion qPitch();
-	quaternion qYaw();
-	quaternion qDes();
-	
-	// Calculate desired rotation.
-	// Introduce a little deadband to compensate for high sensivity.
-	if(_dcDesiredRoll  < _dcDeadbandLowerBoundary or _dcDesiredRoll  > _dcDeadbandUpperBoundary)roll  = _dcDesiredRoll*_maxRoll;
-	if(_dcDesiredPitch < _dcDeadbandLowerBoundary or _dcDesiredPitch > _dcDeadbandUpperBoundary)pitch = _dcDesiredPitch*_maxPitch;
-	if(_dcDesiredYaw   < _dcDeadbandLowerBoundary or _dcDesiredYaw   > _dcDeadbandUpperBoundary)yaw   = _dcDesiredYaw*_maxYaw;
-	
-	// Consequtive quaternion rotations.
-	qRoll  = quaterion(roll,  _unitY);
-	qPitch = quaterion(pitch, _unitX);
-	qYaw   = quaterion(yaw,   _unitZ);
-	qDes   = qYaw.cross(qPitch.cross(qRoll));
-	
-	// Calculate PID rotational velocity outputs [rad/s].
-	float dRoll  = _pidRoll->calculate(_qAtt.y,  qDes.y);
-	float dPitch = _pidPitch->calculate(_qAtt.x, qDes.x);
-	float dYaw   = _pidYaw->calculate(_qAtt.z,   qDes.z);
-	
-	// Transform back to duty cycle [%].
-	float dcRoll  = dRoll/(DPS_MAX*pi/180);
-	float dcPitch = dPitch/(DPS_MAX*pi/180);
-	float dcYaw   = dYaw/(DPS_MAX*pi/180);
-	
-	return vector(dcPitch, dcRoll, dcYaw);
-}
-
-/*******************************************************************************
- * 
- ******************************************************************************/
-float controller::getLooptime()
+float controller::getLooptime(void)
 {
 	return _looptime;
 }
 
 /*******************************************************************************
  * Method for returning the quadcopters state vector.
- * 
- * 	[g_Pitch   , g_Roll   , g_Yaw,
- * 	 g_dotPitch, g_dotRoll, g_dotYaw,
- * 	 g_accelX  , g_accelY , g_accelZ]^T
- *
- *
  ******************************************************************************/
-vector controller::getState()
+vector controller::getState(void)
 {
 	//TODO::
-	//return ;
+	return vector();
 }
 
 /*******************************************************************************
  * 
  ******************************************************************************/
-int8_t controller::monitorBattery()
+int8_t controller::monitorBattery(void)
 {
 	int8_t ret = 0;
 	
-	if(..bat..)ret = -1;
+	//if(..bat..)ret = -1;
 	
 	return ret;
 }
@@ -352,7 +462,7 @@ int8_t controller::monitorBattery()
 /*******************************************************************************
  * 
  ******************************************************************************/
-int8_t controller::getSafetyState()
+int8_t controller::getSafetyState(void)
 {
 	return _safety;
 }

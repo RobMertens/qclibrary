@@ -12,7 +12,7 @@
  * @version 1.1.1 14/08/2016
  ******************************************************************************/
 
-#include "RX.h"
+#include "src/RX.h"
 
 /*******************************************************************************
  * Constructor for the ESC-class. By making an object with this constructor
@@ -167,7 +167,7 @@ float RX::getThrottleChannel()
 	float dc = 0.0f;
 	
 	rx = *_throttleChannel/_periodMicroseconds;
-	dc = rxc2dc(rx);
+	dc = rxc2dc(rx, 0.8f);							//Preserve some top-margin.
 	
 	return dc;
 }
@@ -212,7 +212,7 @@ float RX::getPitchChannel()
 	float dc = 0.0f;
 	
 	rx = *_pitchChannel/_periodMicroseconds;
-	dc = rxc2dc(rx);
+	dc = rxc2dc(rx, 1.0f);
 	
 	return dc;
 
@@ -258,7 +258,7 @@ float RX::getRollChannel()
 	float dc = 0.0f;
 	
 	rx = *_rollChannel/_periodMicroseconds;
-	dc = rxc2dc(rx);
+	dc = rxc2dc(rx, 1.0f);
 	
 	return dc;
 
@@ -304,7 +304,7 @@ float RX::getYawChannel()
 	float dc = 0.0f;
 	
 	rx = *_yawChannel/_periodMicroseconds;
-	dc = rxc2dc(rx);
+	dc = rxc2dc(rx, 1.0f);
 	
 	return dc;
 
@@ -313,12 +313,12 @@ float RX::getYawChannel()
 /*******************************************************************************
  * Method for mapping RX pulses 2 duty cycle.
  ******************************************************************************/
-float RX::rxc2dc(float rxCycle)
+float RX::rxc2dc(float rxCycle, float maxDc)
 {
 	float dc;
 	
-	if(rxCycle >= _maxRxCycle)dc=1.0f;
-	else if(rxCycle <= _minRxCycle)dc=0.0f;
+	if(rxCycle >= _maxRxCycle)dc = maxDc;
+	else if(rxCycle <= _minRxCycle)dc = 0.0f;
 	else{dc = ((1)/(_maxRxCycle - _minRxCycle))*rxCycle;}
 	
 	return dc;

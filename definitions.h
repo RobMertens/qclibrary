@@ -84,9 +84,9 @@
 // Controller: index C
 #define C_DEADBAND			0.04
 
-const float us = 0.000001f;
-const float pi = 3.141592635898f;
-const float g  = 9.81f;
+#define us 				0.000001f;
+#define pi 				3.141592635898f;
+#define g				9.81f;
 
 #endif
 

@@ -14,7 +14,7 @@
  * @version: 	1.0.1
  ******************************************************************************/
 
-#include <MPU6050.h>
+#include <src/MPU6050.h>
 
 /*******************************************************************************
  * Constructor for the MPU6050-class. By making an object with this
@@ -35,7 +35,29 @@ MPU6050::MPU6050(uint8_t address, t_alias alias, uint8_t gyroscopeScale, uint8_t
 	_gyroscopeScale = gyroscopeScale;
 	_acceleroScale  = acceleroScale;
 	
+	//TODO::do this for 8- and 16-bit timers.
 	_t = timer8(alias);
+	
+	//TODO::one timer class, timer8 and timer16 inherent.
+	/**switch(alias)
+	{
+		case(t_alias::T0) :
+		case(t_alias::T2) :
+			_t = timer8(alias);
+			break;
+		
+		case(t_alias::T1) :
+		case(t_alias::T3) :
+		case(t_alias::T4) :
+		case(t_alias::T5) :
+			_t = timer16(alias);
+			break;
+		
+		case(t_alias::NONE) :
+		case(t_alias::TX) :
+			//TODO::error.
+			break;
+	}*/
 }
 
 /*******************************************************************************
@@ -43,7 +65,12 @@ MPU6050::MPU6050(uint8_t address, t_alias alias, uint8_t gyroscopeScale, uint8_t
  ******************************************************************************/
 void MPU6050::initialize()
 {	
-	setRegisters();
+	//Registers.
+	*_pwrmgmt = 0x6B;
+	*_gyrcnfg = 0x1B;
+	*_acccnfg = 0x1C;
+	*_gyrdata = 0x43;
+	*_accdata = 0x3B;
 	
 	//Start wire.
 	Wire.begin();
@@ -59,18 +86,9 @@ void MPU6050::initialize()
 	_t.initialize(t_mode::NORMAL, t_interrupt::OVF);
 	_t.setPrescaler(64);
 	_t.reset();
-}
-
-/*******************************************************************************
- * Method for activating the MPU6050.
- ******************************************************************************/
-void setRegisters(void)
-{
-	*_pwrmgmt = 0x6B;
-	*_gyrcnfg = 0x1B;
-	*_acccnfg = 0x1C;
-	*_gyrdata = 0x43;
-	*_accdata = 0x3B;
+	
+	//Gyroscope bias init.
+	_b = vector();								//Zero vector.
 }
 
 /*******************************************************************************
@@ -147,10 +165,8 @@ int8_t MPU6050::setAcceleroScale(uint8_t scale)
 
 /*******************************************************************************
  * Method for obtaining the gyroscope bias.
- *
- * @param: *b The bias vector [b_x, b_y, b_z]' pointed to.
  ******************************************************************************/
-void MPU6050::setBias(vector *b)
+void MPU6050::setGyroscopeBias()
 {
 	//Local variables.
 	int16_t packet[3];
@@ -166,10 +182,10 @@ void MPU6050::setBias(vector *b)
 	packet[2] = Wire.read()<<8|Wire.read();
 	
 	//Store in global vector.
-	b -> x = (float)( packet[0])/(3754.94f);
-	b -> y = (float)( packet[1])/(3754.94f);
-	b -> z = (float)(-packet[2])/(3754.94f);
-	b -> mag();
+	_b.x = (float)( packet[0])/(3754.94f);
+	_b.y = (float)( packet[1])/(3754.94f);
+	_b.z = (float)(-packet[2])/(3754.94f);
+	_b.mag();
 }
 
 /*******************************************************************************
@@ -178,7 +194,7 @@ void MPU6050::setBias(vector *b)
  * @param: *w The omega vector (w_x, w_y, w_z)' pointed to in [rad/s].
  * @param: b The bias vector (b_x, b_y, b_z)' in [rad/s].
  ******************************************************************************/
-void MPU6050::setGyroscope(vector *w, vector b)
+void MPU6050::updateGyroscope(vector *w)
 {	
 	//Local variables.
 	int16_t packet[3];
@@ -194,9 +210,9 @@ void MPU6050::setGyroscope(vector *w, vector b)
 	packet[2] = Wire.read()<<8|Wire.read();
 	
 	//Store in global vector.
-	w -> x = (float)( packet[0])/(3754.94f) - (b.x);
-	w -> y = (float)( packet[1])/(3754.94f) - (b.y);
-	w -> z = (float)(-packet[2])/(3754.94f) - (b.z);
+	w -> x = (float)( packet[0])/(3754.94f) - (_b.x);
+	w -> y = (float)( packet[1])/(3754.94f) - (_b.y);
+	w -> z = (float)(-packet[2])/(3754.94f) - (_b.z);
 	w -> mag();
 }
 
@@ -205,7 +221,7 @@ void MPU6050::setGyroscope(vector *w, vector b)
  *
  * @param: *a The raw acceleration vector (a_x, a_y, a_z)' pointed to in [g].
  ******************************************************************************/
-void MPU6050::setAccelero(vector *a)
+void MPU6050::updateAccelero(vector *a)
 {
 	//Local variables.
 	int16_t packet[3];
@@ -228,75 +244,6 @@ void MPU6050::setAccelero(vector *a)
 }
 
 /*******************************************************************************
- * Method for determining the attitude quaternion.
- * TODO::Internal system timer instead of passing through time.
- *
- * Source: "Keeping a Good Attitude: A Quaternion-Based Orientation Filter for IMUs and MARGs"
- *
- * @param: *q The unit rotation quaternion (q_w, q_x, q_y, q_z)' pointed to [-].
- * @param: *w The raw rotational velocity vector (w_x, w_y, w_z)' pointed to [rad/s].
- * @param: *a The raw linear acceleration vector (a_x, a_y, a_z)' pointed to [g].
- ******************************************************************************/
-void MPU6050::setQuaternion(quaternion *q, vector *w, vector *a)
-{
-	//Local variable declaration.
-	float alpha;						//Linear interpolation complementary filter weight.
-	float time;
-	
-	vector g;						//Gavity prediction.
-	quaternion qI = quaternion();				//Unit quaternion.
-	quaternion qW = quaternion();				//Integrator quaternion corresponding to rotational velocity.
-	quaternion qA = quaternion();				//Correcting quaternion corresponding to acceleration.
-	time = ((float)_t.getNonResetCount())*0.0625f*64.0f*0.000001f;	//TODO::time calculations in timer class.
-	_t.reset();
-	
-	// Body vector calculations.
-	// These are measurements.
-	qW = q->multiply(quaternion(3.1415f, *w));
-	*q = q->sum(qW.multiply(0.5*time));
-	q->norm();
-	
-	// Quaternion calculation.
-	// Gyroscope integration estimation.
-	// Accelero gravity vector correction.
-	alpha = (float)(!getMovement(&*a, 1.02));		// 2% determined by testing.
-	g  = (q->conj()).rotate(*a); 				// PREDICTED GRAVITY (Body2World)
-	qA = quaternion(sqrt(0.5*(g.z + 1.0)), -g.y/sqrt(2.0*(g.z + 1.0)), g.x/sqrt(2.0*(g.z + 1.0)), 0.0f);
-	qA = (qI.multiply(1 - alpha)).sum(qA.multiply(alpha));	// LERP
-	qA.norm();						// Corrected quaternion.
-	
-	// Total quaternion.
-	*q = q->cross(qA);
-}
-
-/*******************************************************************************
- * Method for determining if the quadcopter is flying dynamical or not.
- * The total acceleration is compared w/ gravity.
- * 
- * DO NOT USE A GRAVITY CORRECTED ACCELERATION VECTOR.
- *
- * @param: *a The body/inertial linear acceleration vector (a_x, a_y, a_z)' pointed to [g].
- * @param: p The user-defired comparision percentage, e.g.: 1,02.
- ******************************************************************************/
-bool MPU6050::getMovement(vector *a, float p)
-{
-	//Local variables.
-	bool movement;
-	float eta;
-	
-	//If acc/g-ratio equals greater than p[%]: dynamic flight.
-	//Else: take-off/landing position or hoovering.
-	//Sensitivity depends on p, different for bias/quaternion.
-	//GRAVITY VALUE DEPENDENT ON SENSOR.
-	movement = false;
-	eta = abs((a -> m)/0.91f);
-	if (eta >= p)movement = true;
-	
-	//Return movement status.
-	return movement;
-}
-
-/*******************************************************************************
  * Method for getting the address of the MPU6050.
  *
  * @return _address The address of the I2C-device.
@@ -304,4 +251,42 @@ bool MPU6050::getMovement(vector *a, float p)
 uint8_t MPU6050::getAddress()
 {	
 	return _address;
+}
+
+/*******************************************************************************
+ * Method for getting the scale-setting of the gyroscope.
+ * All possibilities are: 0x00 for +-250dps,
+ *    			  0x08 for +-500dps,
+ *		 	  0x10 for +-1000dps and
+ *			  0x18 for +-2000dps.
+ *
+ * @return _gyroscopeScale The scale-setting of the gyroscope [byte].
+ ******************************************************************************/
+uint8_t MPU6050::getGyroscopeScale()
+{	
+	return _gyroscopeScale;
+}
+
+/*******************************************************************************
+ * Method for getting the scale-setting of the accelero.
+ * All possibilities are: 0x00 for +-2g,
+ *    			  0x08 for +-4g,
+ *			  0x10 for +-8g and
+ *			  0x18 for +-16g.
+ *
+ * @return _acceleroScale The scale-setting of the accelerometer [byte].
+ ******************************************************************************/
+uint8_t MPU6050::getAcceleroScale()
+{	
+	return _acceleroScale;
+}
+
+/*******************************************************************************
+ * Method for getting the gyroscope bias vector.
+ *
+ * @return _b The gyroscope bias vector [rad/s].
+ ******************************************************************************/
+vector MPU6050::getGyroscopeBias()
+{	
+	return _b;
 }
