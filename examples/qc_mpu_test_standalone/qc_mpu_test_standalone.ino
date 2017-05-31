@@ -16,10 +16,8 @@
  * INCLUDES
  */
 //LIBRARIES
-#include <definitions.h>
-//#include <qclibrary.h>
 #include <Wire.h>
-#include <cores/math.h>
+#include "vmath.h"
 
 /**
  * DECLARATIONS
@@ -50,21 +48,8 @@ vector wAccel;
 
 //Timers.
 //index t : timer
-unsigned long tWatchdog;
-uint16_t tLoop;
-uint16_t tEsc;
-uint16_t tMpu;
-
-//Math.
-const float us = 0.000001f;
-const float pi = 3.141592635898f;
-const float g  = 9.81f;
-
-//Velocity approximation.
-const float dm = 0.5; //[kg]
-
-vector dDrag;
-vector dVeloc;
+unsigned long loopstart;
+unsigned long looptime;
 
 /**
  * SETUP
@@ -91,56 +76,55 @@ void setup()
  */
 void loop()
 {
-	tWatchdog = micros();
+	loopstart = micros();
 
 	//Get raw data vectors from measurements.
-	//Update gyroscope bias and remove accelerometer noise.
-	setAcceleration(&mAccel);
-	bAccel = bAccel.multiply(0.9f).sum(mAccel.multiply(0.1f));
-	//if (!getMovement(&bAccel, 1.0))setBias(&mBias); //Update bias if not moving.
+	if(!getMovement(&bAccel, 1.0))setBias(&mBias); //Update bias if not moving.
 	setOmega(&mOmega, &mBias);
-	/**
-	Serial.print(bAccel.m);
-	Serial.print("\t");
-	Serial.print(bOmega.x);
+	setAcceleration(&mAccel);
+	
+	//Update gyroscope bias and remove accelerometer noise.
+	bOmega = mOmega;
+	bAccel = bAccel.multiply(0.9f).sum(mAccel.multiply(0.1f));
+	
+	/**Serial.print(bOmega.x);
 	Serial.print("\t");
 	Serial.print(bOmega.y);
 	Serial.print("\t");
-	Serial.println(bOmega.z);
-	*/
+	Serial.println(bOmega.z);*/
+	Serial.print(bAccel.x);
+	Serial.print("\t");
+	Serial.print(bAccel.y);
+	Serial.print("\t");
+	Serial.println(bAccel.z);
+	
 	//Update rotation quaternion.
-	setQuaternion(&rQ, &bOmega, &bAccel, tLoop);
-	/**
-	Serial.print(rQ.w);
+	//setQuaternion(&rQ, &bOmega, &bAccel, tLoop);
+	
+	/**Serial.print(rQ.w);
 	Serial.print("\t");
 	Serial.print(rQ.x);
 	Serial.print("\t");
 	Serial.print(rQ.y);
 	Serial.print("\t");
-	Serial.println(rQ.z);
-	*/
+	Serial.println(rQ.z);*/
+	
 	//Update world vectors.
-	wAccel = (rQ.conj()).rotate(bAccel);wAccel.z -= 0.91f; // Remove gravity;
-	wVeloc = wVeloc.sum(wAccel.multiply(g*us*tLoop)); // This is bad.
-
-	Serial.print(wAccel.x);
+	//wAccel = (rQ.conj()).rotate(bAccel);wAccel.z -= 0.91f; // Remove gravity;
+	//wVeloc = wVeloc.sum(wAccel.multiply(9.81*0.000001*looptime)); // This is bad.
+	
+	/**Serial.print(wAccel.x);
 	Serial.print("\t");
 	Serial.print(wAccel.y);
 	Serial.print("\t");
-	Serial.println(wAccel.z);
+	Serial.println(wAccel.z);*/
 
-	//Serial.println(tl);
-
-	while(tLoop <= 4000)
-	{
-		tLoop = micros() - tWatchdog;
-	}
+	//looptime = micros() - loopstart;
+	//Serial.println(tLoop);
 }
 
 /**
  * GLOBAL FUNCTIONS
- *
- * TODO::replace these by classes.
  */
 
 /**
@@ -246,8 +230,8 @@ void initialize()
 	while(Wire.available() < 1);
 	if(Wire.read() != 0x08)
 	{
-	PORTB |= 0x80;
-	while(1);
+		PORTB |= 0x80;
+		while(1);
 	}
 
 	// Set gyroscope to 2g degrees per second scale.
@@ -265,40 +249,40 @@ void initialize()
 	while(Wire.available() < 1);
 	if(Wire.read() != 0x00)
 	{
-	PORTB |= 0x80;
-	while(1);
+		PORTB |= 0x80;
+		while(1);
 	}
 }
 
 /**
  * Calculate the attitude quaternion.
  */
-void setQuaternion(quaternion *q, vector *w, vector *a, uint16_t t)
+void setQuaternion(quaternion *q, vector *w, vector *a, float t)
 {
 	//Local variable declaration.
 	float alpha; //Linear interpolation complementary filter weight.
 
 	vector g; //Gavity prediction.
 	quaternion qI = quaternion(); //Unit quaternion.
-	quaternion qW = quaternion(); //Integrator quaternion corresponding to rotational velocity.
-	quaternion qA = quaternion(); //Correcting quaternion corresponding to acceleration.
+	quaternion qW; //Integrator quaternion corresponding to rotational velocity.
+	quaternion qA; //Correcting quaternion corresponding to acceleration.
 
 	//Quaternion corresponding to omega.
 	//Integration of quaternion.
-	qW = q -> multiply(quaternion(pi, *w));
-	*q = q -> sum(qW.multiply(0.5*us*(float)(t)));
+	qW = q -> cross(quaternion(3.1415f, *w));
+	*q = q -> sum(qW.multiply(0.5f*0.000001f*t));
 	q -> norm();
 
 	//Quaternion corresponding to acceleration.
 	//Tilt correction.
-	alpha = (float)(!getMovement(&*a, 1.02));
+	//alpha = (float)(!getMovement(&*a, 1.02));
 	g  = (q -> conj()).rotate(*a); // PREDICTED GRAVITY (Body2World)
 	qA = quaternion(sqrt(0.5*(g.z + 1)), -g.y/sqrt(2*(g.z + 1)), g.x/sqrt(2*(g.z + 1)), 0.0f);
 	qA = (qI.multiply(1 - alpha)).sum(qA.multiply(alpha)); // LERP
 	qA.norm();
 
 	// Total quaternion.
-	*q = q -> multiply(qA);
+	*q = q -> cross(qA);
 }
 
 /**
