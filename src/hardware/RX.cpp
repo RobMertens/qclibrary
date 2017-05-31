@@ -12,7 +12,7 @@
  * @version 1.1.1 14/08/2016
  ******************************************************************************/
 
-#include "src/RX.h"
+#include "hardware/RX.h"
 
 /*******************************************************************************
  * Constructor for the ESC-class. By making an object with this constructor

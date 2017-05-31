@@ -1,116 +1,201 @@
-/**
- * qc_mputest.ino
+/******************************************************************************
+ * Quadcopter-Library-v1
+ * qc_mpu_test.ino
  * 
- * This file let's you test the MPU6050.
- * Remove the brackets to read in the wanted sensor data within loop.
- * 
- * TODO::use build-in class functions to reduce file size.
- * TODO::use <definitions.h>.
- * 
+ * This is a test file for the mpu6050.
+ *
  * @author:	Rob Mertens
- * @date:	14/04/2017
- * @version:	0.0.0
- */
+ * @date:	10/05/2017
+ * @version:	1.1.1
+ ******************************************************************************/
 
-/**
- * INCLUDES
- */
-//LIBRARIES
-#include <definitions.h>
-//#include <qclibrary.h>
-#include <Wire.h>
-#include <cores/math.h>
+#include <math.h>
+#include "timer8.h"
+#include "vmath.h"
+#include "hardware/MPU6050.h"
 
-/**
+/******************************************************************************
  * DECLARATIONS
- */
-//Raw vectors from MPU6050 measurement.
-//index m : measurement
-vector mOmega;
-vector mAccel;
-vector mBias;
+ ******************************************************************************/
+float pMove = 1.02;						//2% difference in gravity vector means movement.
 
-//Body vectors w/ removed bias and noise.
-//index b : body
-vector bOmega;
-vector bAccel;
+vector mOmega;							//Raw vectors from MPU6050 measurement.
+vector mAccel;							//index m : measurement
 
-//Rotation quaternions.
-//index r : rotation
-quaternion rQ;
-vector rEuler; //RPY angles.
-vector rTheta; //True angles w.r.t. Euler by integrating factors.
+vector bOmega;							//Body vectors w/ removed bias and noise.
+vector bAccel;							//index b : body
 
-//World vectors.
-//index w : world
-vector wOmega;
-vector wPosit;
-vector wVeloc;
-vector wAccel;
+quaternion rQ;							//Rotation quaternions.
+								//index r : rotation
+vector rEuler; 							//RPY angles.
+vector rTheta; 							//True angles w.r.t. Euler by integrating factors.
 
-//Timers.
-//index t : timer
-unsigned long tWatchdog;
-uint16_t tLoop;
-uint16_t tEsc;
-uint16_t tMpu;
+vector wAccel;							//World vectors.
+vector wAccelGravComp;
 
-//Math.
-const float us = 0.000001f;
-const float pi = 3.141592635898f;
-const float g  = 9.81f;
+timer8 t(t_alias::T2);
 
-//Velocity approximation.
-const float dm = 0.5; //[kg]
+MPU6050 imu(0x68);						//MPU6050.
 
-vector dDrag;
-vector dVeloc;
-
-/**
+/******************************************************************************
  * SETUP
- */
+ ******************************************************************************/
 void setup()
 {
-	//Serial init.
-	Serial.begin(115200);
-
-	//I2C init.
-	Wire.begin();
-	Wire.setClock(400000L);
-
-	initialize();
-
-	setBias(&mBias); //Assuming no movement.
-
-	//I/O init.
-	DDRB |= 0x80; //LED
+	//Serial.
+	Serial.begin(9600);
+	
+	//Timer.
+	t.initialize(t_mode::NORMAL, t_interrupt::OVF);
+	t.setPrescaler(64);
+	
+	//IMU.
+	imu.initialize(0x08, 0x00);
+	imu.setGyroscopeBias();
+	
 }
 
-/**
+/******************************************************************************
  * LOOP
- */
+ ******************************************************************************/
 void loop()
 {
-	tWatchdog = micros();
-
 	//Get raw data vectors from measurements.
-	//Update gyroscope bias and remove accelerometer noise.
-	setAcceleration(&mAccel);
+	if(!getMovement(pMove))
+	{
+		imu.setGyroscopeBias();
+	}
+	imu.updateGyroscope(&mOmega);
+	imu.updateAccelero(&mAccel);
+	
+	//printRawVectors();
+	
+	//Update local vars.
+	bOmega = mOmega;
 	bAccel = bAccel.multiply(0.9f).sum(mAccel.multiply(0.1f));
-	//if (!getMovement(&bAccel, 1.0))setBias(&mBias); //Update bias if not moving.
-	setOmega(&mOmega, &mBias);
-	/**
-	Serial.print(bAccel.m);
+	
+	//printBodyVectors();
+	
+	//Update rotation quaternion.
+	updateActualAttitude(&rQ, &bOmega, &bAccel);
+	
+	printQuaternion();
+	
+	//Update world vectors.
+	wAccel = (rQ.conj()).rotate(bAccel);
+	wAccelGravComp = wAccel;
+	wAccelGravComp.z -= 0.91f;
+	
+	//printWorldAccelVector();
+	//printWorldAccelGravCompVector();
+}
+
+/******************************************************************************
+ * EXTERNAL FUNCTIONS
+ * These functions belong in the controller class but cannot be used here.
+ * Other functions are used for printing w/ serial.
+ ******************************************************************************/
+void updateActualAttitude(quaternion * q, vector * w, vector * a)
+{
+	//Local variable declaration.
+	float alpha;								//Linear interpolation complementary filter weight.
+	float time;
+	vector worldGravEst;							//Gavity prediction.
+	quaternion qDiff;
+	quaternion qEst;
+	quaternion qCorr;
+	quaternion qI = quaternion();							
+	
+	//Time calc.
+	time = t.getNonResetCount()*0.0625f*64.0f*0.000001f;
+	t.reset();
+	
+	//Gyroscope integration estimation.
+	qDiff = q->cross(quaternion(3.1415f, *w));
+	qEst  = q->sum(qDiff.multiply(0.5*time));				//Integrate rotational velocity with looptime.
+	qEst.norm();
+	
+	//Accelero gravity vector correction.
+	if(!getMovement(pMove))							// 2% determined by testing.
+	{
+		alpha=1.0f;
+	}
+	else
+	{
+		alpha=0.0f;
+	}
+	worldGravEst  = (q->conj()).rotate(*a);				// PREDICTED GRAVITY (Local2World)
+	qCorr = quaternion( sqrt(0.5*(worldGravEst.z + 1.0)		  ),
+			   -worldGravEst.y/sqrt(2.0*(worldGravEst.z + 1.0)),
+			    worldGravEst.x/sqrt(2.0*(worldGravEst.z + 1.0)),
+			    0.0f					  );
+	qCorr = (qI.multiply(1 - alpha)).sum(qCorr.multiply(alpha));		// LERP
+	qCorr.norm();								// Corrected quaternion.
+	
+	//Magnetic correction for yaw-angle.
+	//Not available on MPU6050.
+	//Extra sensor.
+	
+	//Total quaternion.
+	*q = qEst.cross(qCorr);
+	
+	//Euler representation.
+	rEuler = q->q2euler();
+}
+
+bool getMovement(float p)
+{
+	//Local variables.
+	bool movement;
+	float eta;
+	
+	//If acc/g-ratio equals greater than p[%]: dynamic flight.
+	//Else: take-off/landing position or hoovering.
+	//Sensitivity depends on p, different for bias/quaternion.
+	//GRAVITY VALUE DEPENDENT ON SENSOR.
+	movement = false;
+	eta = abs((bAccel.m)/0.91f);					//TODO::determine gravity vector at stand-still, like gyro bias.
+	if(eta >= p)
+	{	
+		movement = true;
+	}
+	
+	//Return movement status.
+	return movement;
+}
+
+void printRawVectors(void)
+{
+	Serial.print(mOmega.x);
 	Serial.print("\t");
+	Serial.print(mOmega.y);
+	Serial.print("\t");
+	Serial.print(mOmega.z);
+	Serial.print("\t");
+	Serial.print(mAccel.x);
+	Serial.print("\t");
+	Serial.print(mAccel.y);
+	Serial.print("\t");
+	Serial.println(mAccel.z);
+}
+
+void printBodyVectors(void)
+{
 	Serial.print(bOmega.x);
 	Serial.print("\t");
 	Serial.print(bOmega.y);
 	Serial.print("\t");
-	Serial.println(bOmega.z);
-	*/
-	//Update rotation quaternion.
-	setQuaternion(&rQ, &bOmega, &bAccel, tLoop);
-	/**
+	Serial.print(bOmega.z);
+	Serial.print("\t");
+	Serial.print(bAccel.x);
+	Serial.print("\t");
+	Serial.print(bAccel.y);
+	Serial.print("\t");
+	Serial.println(bAccel.z);
+}
+
+void printQuaternion(void)
+{
 	Serial.print(rQ.w);
 	Serial.print("\t");
 	Serial.print(rQ.x);
@@ -118,206 +203,22 @@ void loop()
 	Serial.print(rQ.y);
 	Serial.print("\t");
 	Serial.println(rQ.z);
-	*/
-	//Update world vectors.
-	wAccel = (rQ.conj()).rotate(bAccel);wAccel.z -= 0.91f; // Remove gravity;
-	wVeloc = wVeloc.sum(wAccel.multiply(g*us*tLoop)); // This is bad.
+}
 
+void printWorldAccelVector(void)
+{
 	Serial.print(wAccel.x);
 	Serial.print("\t");
 	Serial.print(wAccel.y);
 	Serial.print("\t");
 	Serial.println(wAccel.z);
-
-	//Serial.println(tl);
-
-	while(tLoop <= 4000)
-	{
-		tLoop = micros() - tWatchdog;
-	}
 }
 
-/**
- * GLOBAL FUNCTIONS
- *
- * TODO::replace these by classes.
- */
-
-/**
- * Obtain rotational velocity from MPU6050 gyroscope [RAD/S].
- */
-void setOmega(vector *w, vector *bias)
+void printWorldAccelGravCompVector(void)
 {
-	//Local variables.
-	int16_t packet[3];
-
-	//Read the MPU-6050 gyroscope data registers.
-	Wire.beginTransmission(0x68);
-	Wire.write(0x43);
-	Wire.endTransmission();
-	Wire.requestFrom(0x68, 6);
-	while(Wire.available() < 6);
-	packet[0] = Wire.read()<<8|Wire.read();
-	packet[1] = Wire.read()<<8|Wire.read();
-	packet[2] = Wire.read()<<8|Wire.read();
-
-	//Store in global vector.
-	w -> x = (float)(packet[0])/(3754.94f) - (bias -> x);
-	w -> y = (float)(packet[1])/(3754.94f) - (bias -> y);
-	w -> z = (float)(-packet[2])/(3754.94f) - (bias -> z);
-	w -> m = sqrt((w -> x)*(w -> x) + (w -> y)*(w -> y) + (w -> z)*(w -> z));
-}
-
-/**
- * Obtain rotational velocity bias error from MPU6050 gyroscope [RAD/S].
- */
-void setBias(vector *b)
-{
-	//Local variables.
-	int16_t packet[3];
-
-	//Read the MPU-6050 gyroscope data registers.
-	Wire.beginTransmission(0x68);
-	Wire.write(0x43);
-	Wire.endTransmission();
-	Wire.requestFrom(0x68, 6);
-	while(Wire.available() < 6);
-	packet[0] = Wire.read()<<8|Wire.read();
-	packet[1] = Wire.read()<<8|Wire.read();
-	packet[2] = Wire.read()<<8|Wire.read();
-
-	//Store in global vector.
-	b -> x = (float)(packet[0])/(3754.94f);
-	b -> y = (float)(packet[1])/(3754.94f);
-	b -> z = (float)(-packet[2])/(3754.94f);
-	b -> m = sqrt((b -> x)*(b -> x) + (b -> y)*(b -> y) + (b -> z)*(b -> z));
-}
-
-/**
- * Obtain translational acceleration from MPU6050 accelerometer [G-FORCE].
- */
-void setAcceleration(vector *a)
-{
-	//Local variables.
-	int16_t packet[3];
-
-	//Read the MPU-6050 accelerometer data registers.
-	Wire.beginTransmission(0x68);
-	Wire.write(0x3B);
-	Wire.endTransmission();
-	Wire.requestFrom(0x68, 6);
-	while(Wire.available() < 6);
-	packet[0] = Wire.read()<<8|Wire.read();
-	packet[1] = Wire.read()<<8|Wire.read();
-	packet[2] = Wire.read()<<8|Wire.read();
-
-	//Store in global vector.
-	a -> x = (float)(-packet[0])/(16384.0f);
-	a -> y = (float)(-packet[1])/(16384.0f);
-	a -> z = (float)(packet[2])/(16384.0f);
-	a -> m = sqrt((a -> x)*(a -> x) + (a -> y)*(a -> y) + (a -> z)*(a -> z));
-}
-
-/**
- * Initialize the MPU6050 sensor.
- */
-void initialize()
-{
-	// Start MPU
-	Wire.beginTransmission(0x68);
-	Wire.write(0x6B);
-	Wire.write(0x00);
-	Wire.endTransmission();
-
-	delayMicroseconds(50);
-
-	// Set gyroscope to 500 degrees per second scale.
-	Wire.beginTransmission(0x68);
-	Wire.write(0x1B);
-	Wire.write(0x08);
-	Wire.endTransmission();
-
-	// Perform check on gyroscope scaling.
-	// If register setting is wrong: EXIT + LED.
-	Wire.beginTransmission(0x68);
-	Wire.write(0x1B);
-	Wire.endTransmission();
-	Wire.requestFrom(0x68, 1);
-	while(Wire.available() < 1);
-	if(Wire.read() != 0x08)
-	{
-	PORTB |= 0x80;
-	while(1);
-	}
-
-	// Set gyroscope to 2g degrees per second scale.
-	Wire.beginTransmission(0x68);
-	Wire.write(0x1C);
-	Wire.write(0x00);
-	Wire.endTransmission();
-
-	// Perform check on accelero scaling.
-	// If register setting is wrong: EXIT + LED.
-	Wire.beginTransmission(0x68);
-	Wire.write(0x1C);
-	Wire.endTransmission();
-	Wire.requestFrom(0x68, 1);
-	while(Wire.available() < 1);
-	if(Wire.read() != 0x00)
-	{
-	PORTB |= 0x80;
-	while(1);
-	}
-}
-
-/**
- * Calculate the attitude quaternion.
- */
-void setQuaternion(quaternion *q, vector *w, vector *a, uint16_t t)
-{
-	//Local variable declaration.
-	float alpha; //Linear interpolation complementary filter weight.
-
-	vector g; //Gavity prediction.
-	quaternion qI = quaternion(); //Unit quaternion.
-	quaternion qW = quaternion(); //Integrator quaternion corresponding to rotational velocity.
-	quaternion qA = quaternion(); //Correcting quaternion corresponding to acceleration.
-
-	//Quaternion corresponding to omega.
-	//Integration of quaternion.
-	qW = q -> multiply(quaternion(pi, *w));
-	*q = q -> sum(qW.multiply(0.5*us*(float)(t)));
-	q -> norm();
-
-	//Quaternion corresponding to acceleration.
-	//Tilt correction.
-	alpha = (float)(!getMovement(&*a, 1.02));
-	g  = (q -> conj()).rotate(*a); // PREDICTED GRAVITY (Body2World)
-	qA = quaternion(sqrt(0.5*(g.z + 1)), -g.y/sqrt(2*(g.z + 1)), g.x/sqrt(2*(g.z + 1)), 0.0f);
-	qA = (qI.multiply(1 - alpha)).sum(qA.multiply(alpha)); // LERP
-	qA.norm();
-
-	// Total quaternion.
-	*q = q -> multiply(qA);
-}
-
-/**
- * Get quadcopter movement status based on acceleration (raw/body/world).
- */
-bool getMovement(vector *a, float p)
-{
-	//Local variables.
-	bool movement;
-	float eta;
-
-	//If acc/g-ratio equals greater than p[%]: dynamic flight.
-	//Else: take-off/landing position or hoovering.
-	//Sensitivity depends on p, different for bias/quaternion.
-	//GRAVITY VALUE DEPENDENT ON SENSOR.
-	movement = 0;
-	eta = abs((a -> m)/0.91f);
-	if (eta >= p)movement = 1;
-
-	//Return movement status.
-	return movement;
+	Serial.print(wAccel.x);
+	Serial.print("\t");
+	Serial.print(wAccel.y);
+	Serial.print("\t");
+	Serial.println(wAccel.z);
 }

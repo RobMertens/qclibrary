@@ -1,6 +1,8 @@
 #ifndef _BAT_H_
 #define _BAT_H_
 
+#include <stdint.h>
+
 class BAT
 {
 	public:

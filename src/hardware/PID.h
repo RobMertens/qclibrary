@@ -1,17 +1,19 @@
 #ifndef _PID_H_
 #define _PID_H_
 
+#include <stdint.h>
+
 class PID
 {
 	public:
 		//Constructors ***************************************************************
 		PID(void);
-		PID(float, float, float, float, float, int8_t);
+		PID(float, float, float, float, float, int8_t=0x01);
 
 		//Setters ********************************************************************
 		void setOutputLimits(float, float);
 		void setGainValues(float, float, float);
-		void setDirection(uint8_t);
+		void setDirection(int8_t);
 		void reset();
 							  
 		//Getters ********************************************************************
@@ -21,7 +23,7 @@ class PID
 		float getProportionalGain();
 		float getIntegralGain();
 		float getDifferentialGain();
-		uint8_t getDirection();
+		int8_t getDirection();
 		
 	private:
 		float _kp;                  							// (P)roportional Tuning Parameter
@@ -36,7 +38,7 @@ class PID
 		float _iterm;
 		float _lastError;
 		
-		uint8_t _direction;
+		int8_t _direction;
 };
 #endif
 

@@ -10,7 +10,7 @@
  * @version	1.1.1
  ******************************************************************************/
 
-#include "src/PID.h"
+#include "hardware/PID.h"
 
 /*******************************************************************************
  * Constructor for the PID-controller.
@@ -65,7 +65,7 @@ void PID::setOutputLimits(float maxLimit, float minLimit)
  * @param ki The integral gain.
  * @param kd The derivative gain.
  ******************************************************************************/
-void PID::setGainValues(double kp, double ki, double kd)
+void PID::setGainValues(float kp, float ki, float kd)
 {
 	_kp = kp;
 	_ki = ki;
@@ -77,7 +77,7 @@ void PID::setGainValues(double kp, double ki, double kd)
  * 
  * @param direction The direction of the controller (FORWARD/REVERSE).
  ******************************************************************************/
-void PID::setDirection(int direction)
+void PID::setDirection(int8_t direction)
 {
 	_direction = direction;
 }
@@ -169,7 +169,7 @@ float PID::getDifferentialGain()
  * 
  * @return _direction The direction of the controller.
  ******************************************************************************/
-uint8_t PID::getDirection()
+int8_t PID::getDirection()
 {
-	return _direction ? FORWARD : REVERSE;
+	return _direction;
 }

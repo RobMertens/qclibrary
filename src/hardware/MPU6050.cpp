@@ -14,7 +14,7 @@
  * @version: 	1.0.1
  ******************************************************************************/
 
-#include <src/MPU6050.h>
+#include <hardware/MPU6050.h>
 
 /*******************************************************************************
  * Constructor for the MPU6050-class. By making an object with this
@@ -22,55 +22,22 @@
  * and sets up the wire for communication.
  *
  * @param: address The I2C device address.
- * @param: gyroscopeScale The gyroscope scale setting (DEFAULT=0x00).
- * @param: acceleroScale The accelerometer scale setting (DEFAULT=0x00).
- * @param: gyroscopeScaleRegister The gyroscope scale register.
- * @param: acceleroScaleRegister The accelerometer scale register.
- * @param: gyroscopeDataRegister The (1st) gyroscope measurement data register.
- * @param: acceleroDataRegister The (1st) accelerometer measurement data register.
  ******************************************************************************/
-MPU6050::MPU6050(uint8_t address, t_alias alias, uint8_t gyroscopeScale, uint8_t acceleroScale)
+MPU6050::MPU6050(uint8_t address)
 {	
-	_address 	= address;
-	_gyroscopeScale = gyroscopeScale;
-	_acceleroScale  = acceleroScale;
-	
-	//TODO::do this for 8- and 16-bit timers.
-	_t = timer8(alias);
-	
-	//TODO::one timer class, timer8 and timer16 inherent.
-	/**switch(alias)
-	{
-		case(t_alias::T0) :
-		case(t_alias::T2) :
-			_t = timer8(alias);
-			break;
-		
-		case(t_alias::T1) :
-		case(t_alias::T3) :
-		case(t_alias::T4) :
-		case(t_alias::T5) :
-			_t = timer16(alias);
-			break;
-		
-		case(t_alias::NONE) :
-		case(t_alias::TX) :
-			//TODO::error.
-			break;
-	}*/
+	_address = address;
 }
 
 /*******************************************************************************
  * Method for activating the MPU6050.
+ *
+ * @param: gyroscopeScale The gyroscope scale setting (DEFAULT=0x00).
+ * @param: acceleroScale The accelerometer scale setting (DEFAULT=0x00).
  ******************************************************************************/
-void MPU6050::initialize()
+void MPU6050::initialize(uint8_t gyroscopeScale, uint8_t acceleroScale)
 {	
-	//Registers.
-	*_pwrmgmt = 0x6B;
-	*_gyrcnfg = 0x1B;
-	*_acccnfg = 0x1C;
-	*_gyrdata = 0x43;
-	*_accdata = 0x3B;
+	//Gyroscope bias init.
+	_b = vector();								//Zero vector.
 	
 	//Start wire.
 	Wire.begin();
@@ -78,17 +45,19 @@ void MPU6050::initialize()
 	
 	//Start MPU
 	Wire.beginTransmission(_address);
-	Wire.write(*_pwrmgmt);
+	Wire.write(_pwrmgmt);
 	Wire.write(0x00);
 	Wire.endTransmission();
 	
-	//Timer.
-	_t.initialize(t_mode::NORMAL, t_interrupt::OVF);
-	_t.setPrescaler(64);
-	_t.reset();
-	
-	//Gyroscope bias init.
-	_b = vector();								//Zero vector.
+	//Set scale.
+	if(setGyroscopeScale(gyroscopeScale)==0)
+	{
+		_gyroscopeScale = gyroscopeScale;
+	}
+	if(setAcceleroScale(acceleroScale)==0)
+	{
+		_acceleroScale  = acceleroScale;
+	}
 }
 
 /*******************************************************************************
@@ -107,14 +76,14 @@ int8_t MPU6050::setGyroscopeScale(uint8_t scale)
 	
 	// Set gyroscope to 500 degrees per second scale.
 	Wire.beginTransmission(_address);
-	Wire.write(*_gyrcnfg);
+	Wire.write(_gyrcnfg);
 	Wire.write(scale);
 	Wire.endTransmission();
 	
 	// Perform check on gyroscope scaling.
 	// If register setting is set correctly set success bit.
 	Wire.beginTransmission(_address);
-	Wire.write(*_gyrcnfg);
+	Wire.write(_gyrcnfg);
 	Wire.endTransmission();
 	Wire.requestFrom(_address, (uint8_t)1);
 	while(Wire.available() < 1);
@@ -143,14 +112,14 @@ int8_t MPU6050::setAcceleroScale(uint8_t scale)
 	
 	// Set gyroscope to xg degrees per second scale.
 	Wire.beginTransmission(_address);
-	Wire.write(*_acccnfg);
+	Wire.write(_acccnfg);
 	Wire.write(scale);
 	Wire.endTransmission();
 
 	// Perform check on accelero scaling.
 	// If register setting is set correctly set success bit.
 	Wire.beginTransmission(_address);
-	Wire.write(*_acccnfg);
+	Wire.write(_acccnfg);
 	Wire.endTransmission();
 	Wire.requestFrom(_address, (uint8_t)1);
 	while(Wire.available() < 1);
@@ -173,7 +142,7 @@ void MPU6050::setGyroscopeBias()
 	
 	//Read the MPU-6050 gyroscope data registers.
 	Wire.beginTransmission(_address);
-	Wire.write(*_gyrdata);
+	Wire.write(_gyrdata);
 	Wire.endTransmission();
 	Wire.requestFrom(_address, (uint8_t)6);
 	while(Wire.available() < 6);
@@ -201,7 +170,7 @@ void MPU6050::updateGyroscope(vector *w)
 	
 	//Read the MPU-6050 gyroscope data registers.
 	Wire.beginTransmission(_address);
-	Wire.write(*_gyrdata);
+	Wire.write(_gyrdata);
 	Wire.endTransmission();
 	Wire.requestFrom(_address, (uint8_t)6);
 	while(Wire.available() < 6);
@@ -228,7 +197,7 @@ void MPU6050::updateAccelero(vector *a)
 	
 	//Read the MPU-6050 accelerometer data registers.
 	Wire.beginTransmission(_address);
-	Wire.write(*_accdata);
+	Wire.write(_accdata);
 	Wire.endTransmission();
 	Wire.requestFrom(_address, (uint8_t)6);
 	while(Wire.available() < 6);
@@ -248,7 +217,7 @@ void MPU6050::updateAccelero(vector *a)
  *
  * @return _address The address of the I2C-device.
  ******************************************************************************/
-uint8_t MPU6050::getAddress()
+uint8_t MPU6050::getAddress(void)
 {	
 	return _address;
 }
@@ -262,7 +231,7 @@ uint8_t MPU6050::getAddress()
  *
  * @return _gyroscopeScale The scale-setting of the gyroscope [byte].
  ******************************************************************************/
-uint8_t MPU6050::getGyroscopeScale()
+uint8_t MPU6050::getGyroscopeScale(void)
 {	
 	return _gyroscopeScale;
 }
@@ -276,7 +245,7 @@ uint8_t MPU6050::getGyroscopeScale()
  *
  * @return _acceleroScale The scale-setting of the accelerometer [byte].
  ******************************************************************************/
-uint8_t MPU6050::getAcceleroScale()
+uint8_t MPU6050::getAcceleroScale(void)
 {	
 	return _acceleroScale;
 }
@@ -286,7 +255,7 @@ uint8_t MPU6050::getAcceleroScale()
  *
  * @return _b The gyroscope bias vector [rad/s].
  ******************************************************************************/
-vector MPU6050::getGyroscopeBias()
+vector MPU6050::getGyroscopeBias(void)
 {	
 	return _b;
 }

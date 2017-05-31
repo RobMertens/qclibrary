@@ -12,7 +12,7 @@
  * @version 1.0.1 14/08/2016
  ******************************************************************************/
 
-#include "src/vmath.h"
+#include "vmath.h"
 
 /*******************************************************************************
  * Constructor for a null-vector.
@@ -84,9 +84,9 @@ vector vector::substract(vector v)
  ******************************************************************************/
 vector vector::multiply(float s)
 {
-	return vector(s*x,
-		      s*y,
-		      s*z);
+	return vector(x*s,
+		      y*s,
+		      z*s);
 }
 
 /*******************************************************************************
@@ -203,7 +203,7 @@ quaternion quaternion::conj(void)
 /*******************************************************************************
  * Method for obtaining the inverse quaternion.
  ******************************************************************************/
-void quaternion::inv(void)
+quaternion quaternion::inv(void)
 {
 	return quaternion(w/m,
 			  x/=(-1.0f*m),

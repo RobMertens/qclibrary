@@ -1,6 +1,8 @@
 #ifndef _LED_H_
 #define _LED_H_
 
+#include <stdint.h>
+
 class LED
 {
 	public:
@@ -8,12 +10,12 @@ class LED
 		LED(volatile uint8_t *, uint8_t, volatile uint8_t *, volatile uint8_t *);
 
 		//Setters ********************************************************************
-		void setLed();
-		void resetLed();
-		void toggleLed();
+		void set();
+		void reset();
+		void toggle();
 
 		//Getters ********************************************************************
-		bool getLedState();
+		bool getState();
   
 	private:
 		//Registers ******************************************************************

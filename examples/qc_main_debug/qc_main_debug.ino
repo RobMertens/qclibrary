@@ -50,7 +50,7 @@ int main(void)
 	con.assignImu(&imu);
 	con.assignReceiver(&rec, rx_mode::M1);
 	con.assignPids(&r, &p, &y);
-	con.assignDrives(&drive1, &drive2, &drive3, &drive4);
+	con.assignDrives(&esc1, &esc2, &esc3, &esc4);
 	
 	//Flight controller init.
 	con.initialize();

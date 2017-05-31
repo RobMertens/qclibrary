@@ -2,6 +2,8 @@
  * Quadcopter-Library-v1
  * controller.cpp
  * 
+ * TODO::most functions are order dependent. Pass through global var.
+ * 
  * @author:	Rob Mertens
  * @date:	14/08/2016
  * @version:	1.1.1
@@ -12,45 +14,68 @@
 /*******************************************************************************
  * Constructor for the controller-class.
  ******************************************************************************/
-controller::controller(MPU6050 imu, RX rec, rx_mode rxm, PID pidRoll, PID pidPitch, PID pidYaw, ESC esc1, ESC esc2, ESC esc3, ESC esc4, c_layout layout, t_alias alias, float deadband)
+controller::controller(c_layout layout, t_alias alias, float deadband)
 {
-	//MPU.
-	_imu = &imu;
-	
-	//REC.
-	_rec = &rec;
-	_rxm = rxm;
-	
-	//PID.
-	_pidRoll  = &pidRoll;
-	_pidPitch = &pidPitch;
-	_pidYaw   = &pidYaw;
-	
-	//ESCs.
-	_esc1 = &esc1;
-	_esc2 = &esc2;
-	_esc3 = &esc3;
-	_esc4 = &esc4;
+	//Layout.
+	_layout = layout;
+
+	//Deadband.
+	_watchdog = timer16(alias);						//TODO::both 8- and 16-bitness. -> inheritance timer-class.
 	
 	//Deadband.
 	_dbDc = deadband;
 	_maxDbDc = 0.5 + 0.5*deadband;
 	_minDbDc = 0.5 - 0.5*deadband;
-
-	//Deadband.
-	_watchdog = timer16(alias);						//TODO::both 8- and 16-bitness. -> inheritance timer-class.
 }
 
 /*******************************************************************************
  * 
  ******************************************************************************/
-void controller::initialize()
+void controller::assignImu(MPU6050 * imu)
+{
+	_imu = imu;
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::assignReceiver(RX * rec, rx_mode mode)
+{
+	_rec = rec;
+	_rec->initialize(mode);							//Should be in controller::initialize().
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::assignPids(PID * pidRoll, PID * pidPitch, PID * pidYaw)
+{
+	_pidRoll = pidRoll;
+	_pidPitch = pidPitch;
+	_pidYaw = pidYaw;
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::assignDrives(ESC * esc1, ESC * esc2, ESC * esc3, ESC * esc4)
+{
+	_esc1 = esc1;
+	_esc2 = esc2;
+	_esc3 = esc3;
+	_esc4 = esc4;
+}
+
+/*******************************************************************************
+ * 
+ ******************************************************************************/
+void controller::initialize(void)
 {
 	//SENSOR.
 	_imu->initialize();
 	
 	//RX.
-	_rec->initialize(_rxm);
+	//_rec->initialize(_rxm);
 	
 	//PIDs.
 	//Nothing.
@@ -83,6 +108,7 @@ void controller::update(void)
 {
 	//Update receiver inputs.
 	updateReceiverData();
+	updateDesiredAttitude();
 	
 	//Update measurements.
 	updateRawData();
@@ -118,9 +144,9 @@ void controller::update(void)
  ******************************************************************************/
 void controller::updateReceiverData(void)
 {
-	float desiredRollDc = 0.0;
-	float desiredPitchDc = 0.0;
-	float desiredYawDc = 0.0;
+	float desiredRollRad = 0.0;
+	float desiredPitchRad = 0.0;
+	float desiredYawRad = 0.0;
 	
 	//Create some margin for throttle.
 	_desiredThrottleDc = _rec->getThrottleChannel();
@@ -134,7 +160,7 @@ void controller::updateReceiverData(void)
 	if(_desiredThetaDc.y < _minDbDc or _desiredThetaDc.y > _maxDbDc)
 	{
 		desiredRollRad  = _desiredThetaDc.y*_maxRoll;
-	
+	}
 	if(_desiredThetaDc.x < _minDbDc or _desiredThetaDc.x > _maxDbDc)
 	{
 		desiredPitchRad = _desiredThetaDc.x*_maxPitch;
@@ -156,14 +182,14 @@ void controller::updateReceiverData(void)
 void controller::updateDesiredAttitude(void)
 {
 	//Create temporary quaternions.
-	quaternion qRoll();
-	quaternion qPitch();
-	quaternion qYaw();
+	quaternion qRoll;
+	quaternion qPitch;
+	quaternion qYaw;
 	
 	//Consequtive quaternion rotations.
-	qRoll  = quaterion(_desiredRollRad,  _unitY);
-	qPitch = quaterion(_desiredPitchRad, _unitX);
-	qYaw   = quaterion(_desiredYawRad,   _unitZ);
+	qRoll  = quaternion(_desiredThetaRad.y, _unitY);
+	qPitch = quaternion(_desiredThetaRad.x, _unitX);
+	qYaw   = quaternion(_desiredThetaRad.z, _unitZ);
 	
 	//Desired quaternion.
 	_qDes  = qYaw.cross(qPitch.cross(qRoll));
@@ -183,22 +209,22 @@ void controller::updateDesiredAttitude(void)
 void controller::updateSafetyState(void)
 {
 	//Make sure the throttle stick is placed in the left-bottom position.
-	if(_safety==0x00 and _desiredThrottleDc < 0.05 and _desiredYawDc < 0.05)
+	if(_safety==0x00 and _desiredThrottleDc < 0.05 and _desiredThetaDc.z < 0.05)
 	{
 		_safety = 0x01;
 	}
 	//Make sure the throttle stick is placed back in the centre-bottom position.
-	else if(_safety==0x01 and _desiredThrottleDc < 0.05 and _desiredYawDc > 0.45 and _desiredYawDc < 0.55)
+	else if(_safety==0x01 and _desiredThrottleDc < 0.05 and _desiredThetaDc.z > 0.45 and _desiredThetaDc.z < 0.55)
 	{
 		_safety = 0x02;
 	}
 	//Make sure the throttle stick is placed in the left-bottom corner.
-	else if(_safety==0x02 and _desiredThrottleDc < 0.05 and _desiredYawDc > 0.95)
+	else if(_safety==0x02 and _desiredThrottleDc < 0.05 and _desiredThetaDc.z > 0.95)
 	{
 		_safety = 0x03;
 	}
 	//Make sure the throttle stick is placed back in the centre-bottom position.
-	else if(_safety==0x03 and _desiredThrottleDc < 0.05 and _desiredYawDc > 0.45 and _desiredYawDc < 0.55)
+	else if(_safety==0x03 and _desiredThrottleDc < 0.05 and _desiredThetaDc.z > 0.45 and _desiredThetaDc.z < 0.55)
 	{
 		_safety &= 0x00;
 	}
@@ -216,12 +242,15 @@ void controller::updateSafetyState(void)
  ******************************************************************************/
 void controller::updateRawData(void)
 {
+	//Update gyro.
+	if(_safety!=0x02)
+	{	
+		_imu->setGyroscopeBias();	 				//Update bias if not flying.
+	}
+	_imu->updateGyroscope(&_omegaRaw);
+	
 	//Update accelero.
 	_imu->updateAccelero(&_accelRaw);
-	
-	//Update gyro.
-	if(_safety!=0x02)_imu->setBias();	 				//Update bias if not flying.
-	_imu->updateGyroscope(&_omegaRaw);
 	
 	//Battery volage.
 	//TODO::
@@ -235,10 +264,10 @@ void controller::updateRawData(void)
 void controller::updateLocalData(void)
 {
 	//Update gyro.
-	_bodyOmega  = _rawOmega;
+	_omegaLocal  = _omegaRaw;
 	
 	//Update accelero.
-	_bodyAccel = _bodyAccel.multiply(0.9f).sum(_rawAccel.multiply(0.1f));	//Complementary filter for noise.
+	_accelLocal = _accelLocal.multiply(0.9f).sum(_accelRaw.multiply(0.1f));	//Complementary filter for noise.
 	
 	//Battery volage.
 	//TODO::
@@ -256,13 +285,13 @@ void controller::updateActualAttitude(void)
 	quaternion qDiff;							
 	
 	//Gyroscope integration estimation.
-	qDiff = _qAtt.multiply(quaternion(3.1415f, _bodyOmega));
+	qDiff = _qAtt.cross(quaternion(3.1415f, _omegaLocal));
 	_qEst  = _qAtt.sum(qDiff.multiply(0.5*_looptime));			//Integrate rotational velocity with looptime.
 	_qEst.norm();
 	
 	//Accelero gravity vector correction.
-	alpha = (float)(!getMovement(1.02));			// 2% determined by testing.
-	worldGravityEst  = (_qAtt.conj()).rotate(_bodyAccel);			// PREDICTED GRAVITY (Body2World)
+	alpha = (float)(!getMovement(1.02));					// 2% determined by testing.
+	worldGravityEst  = (_qAtt.conj()).rotate(_accelLocal);			// PREDICTED GRAVITY (Local2World)
 	_qCorr = quaternion( sqrt(0.5*(worldGravityEst.z + 1.0)			 ),
 			    -worldGravityEst.y/sqrt(2.0*(worldGravityEst.z + 1.0)),
 			     worldGravityEst.x/sqrt(2.0*(worldGravityEst.z + 1.0)),
@@ -275,7 +304,7 @@ void controller::updateActualAttitude(void)
 	//Extra sensor.
 	
 	//Total quaternion.
-	_qAtt = _qEst->cross(_qCorr);
+	_qAtt = _qEst.cross(_qCorr);
 	
 	//Euler representation.
 	_eulerZXY = _qAtt.q2euler();
@@ -300,8 +329,11 @@ bool controller::getMovement(float p)
 	//Sensitivity depends on p, different for bias/quaternion.
 	//GRAVITY VALUE DEPENDENT ON SENSOR.
 	movement = false;
-	eta = abs((_bodyAccel.m)/0.91f);					//TODO::determine gravity vector at stand-still, like gyro bias.
-	if (eta >= p)movement = true;
+	eta = abs((_accelLocal.m)/0.91f);					//TODO::determine gravity vector at stand-still, like gyro bias.
+	if(eta >= p)
+	{	
+		movement = true;
+	}
 	
 	//Return movement status.
 	return movement;
@@ -310,7 +342,7 @@ bool controller::getMovement(float p)
 /*******************************************************************************
  * 
  ******************************************************************************/
-void controller::updateWorldData();
+void controller::updateWorldData()
 {
 	//World.
 	_accelWorld = (_qAtt.conj()).rotate(_accelLocal);
@@ -332,29 +364,29 @@ void controller::updateOutputs(void)
 				   _pidYaw->calculate(_qAtt.z,   _qDes.z));
 	
 	//Transform back to duty cycle [%].
-	_desiredOmegaDc  = vector(_desiredOmegaRPS.x/(_maxRPS.x*pi/180),
-				  _desiredOmegaRPS.y/(_maxRPS.y*pi/180),
-				  _desiredOmegaRPS.z/(_maxRPS.z*pi/180));
+	_desiredOmegaDc  = vector(_desiredOmegaRPS.x/(_maxRPS.x*3.1415f/180.0f),
+				  _desiredOmegaRPS.y/(_maxRPS.y*3.1415f/180.0f),
+				  _desiredOmegaRPS.z/(_maxRPS.z*3.1415f/180.0f));
 	
 	//Do calculations based on structure.
 	//TODO::add more structures.
 	switch(_layout)
 	{
-		case(c_layout::CROSS):
+		case(c_layout::CROSS) :
 			_esc1Dc = _desiredThrottleDc - _desiredOmegaDc.x + _desiredOmegaDc.y - _desiredOmegaDc.z;
 			_esc2Dc = _desiredThrottleDc + _desiredOmegaDc.x + _desiredOmegaDc.y + _desiredOmegaDc.z;
 			_esc3Dc = _desiredThrottleDc + _desiredOmegaDc.x - _desiredOmegaDc.y - _desiredOmegaDc.z;
 			_esc4Dc = _desiredThrottleDc - _desiredOmegaDc.x - _desiredOmegaDc.y + _desiredOmegaDc.z;
 			break;
 		
-		case(c_layout::PLUS):
+		case(c_layout::PLUS) :
 			_esc1Dc = _desiredThrottleDc - _desiredOmegaDc.x - _desiredOmegaDc.z;
 			_esc2Dc = _desiredThrottleDc + _desiredOmegaDc.y + _desiredOmegaDc.z;
 			_esc3Dc = _desiredThrottleDc + _desiredOmegaDc.x - _desiredOmegaDc.z;
 			_esc4Dc = _desiredThrottleDc - _desiredOmegaDc.y + _desiredOmegaDc.z;
 			break;
 			
-		case(c_layout::NONE):
+		case(c_layout::NONE) :
 		default:
 			;;
 			break;

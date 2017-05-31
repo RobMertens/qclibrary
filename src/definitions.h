@@ -47,26 +47,23 @@
 #define B_ALARMLEVEL 			1110		// Battery low voltage boundary (ex.: 1110 equals 11.10V).
 
 // PID: index P
-#define P_PITCH_KP			1.0
-#define P_PITCH_KI			1.0
-#define P_PITCH_KD			1.0
-#define P_PITCH_MAX			100.0
-#define P_PITCH_MIN			100.0
+#define P_P_KP				1.0		// Pitch
+#define P_P_KI				1.0
+#define P_P_KD				1.0
+#define P_P_MAX				100.0
+#define P_P_MIN				100.0
 
-#define P_ROLL_KP			1.0
-#define P_ROLL_KI			1.0
-#define P_ROLL_KD			1.0
-#define P_ROLL_MAX			100.0
-#define P_ROLL_MIN			100.0
+#define P_R_KP				1.0		// Roll
+#define P_R_KI				1.0
+#define P_R_KD				1.0
+#define P_R_MAX				100.0
+#define P_R_MIN				100.0
 
-#define P_YAW_KP			1.0
-#define P_YAW_KI			1.0
-#define P_YAW_KD			1.0
-#define P_YAW_MAX			100.0
-#define P_YAW_MIN			100.0
-
-#define FORWARD				1
-#define REVERSE				-1
+#define P_Y_KP				1.0		// Yaw
+#define P_Y_KI				1.0
+#define P_Y_KD				1.0
+#define P_Y_MAX				100.0
+#define P_Y_MIN				100.0
 
 // MPU6050: index M
 #define MPU_ADDRESS 			0x68

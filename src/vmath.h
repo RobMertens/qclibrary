@@ -1,6 +1,8 @@
 #ifndef _QCMATH_H_
 #define _QCMATH_H_
 
+#include <math.h>
+
 class vector
 {
 	public:
