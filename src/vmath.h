@@ -1,5 +1,5 @@
-#ifndef _QCMATH_H_
-#define _QCMATH_H_
+#ifndef _VMATH_H_
+#define _VMATH_H_
 
 #include <math.h>
 
@@ -13,7 +13,7 @@ class vector
 		float m;
 
 		//Constructors ***************************************************************
-		vector();
+		vector(void);
 		vector(float, float, float);
 
 		//Setters ********************************************************************
@@ -43,7 +43,7 @@ class quaternion
 		float m; 
 
 		//Constructors ***************************************************************
-		quaternion();
+		quaternion(void);
 		quaternion(float, vector);
 		quaternion(float, float, float, float);
 

@@ -92,22 +92,22 @@ void loop()
 	Serial.print(bOmega.y);
 	Serial.print("\t");
 	Serial.println(bOmega.z);*/
-	Serial.print(bAccel.x);
+	/**Serial.print(bAccel.x);
 	Serial.print("\t");
 	Serial.print(bAccel.y);
 	Serial.print("\t");
-	Serial.println(bAccel.z);
+	Serial.println(bAccel.z);*/
 	
 	//Update rotation quaternion.
-	//setQuaternion(&rQ, &bOmega, &bAccel, tLoop);
+	setQuaternion(&rQ, &bOmega, &bAccel, looptime);
 	
-	/**Serial.print(rQ.w);
+	Serial.print(rQ.w);
 	Serial.print("\t");
 	Serial.print(rQ.x);
 	Serial.print("\t");
 	Serial.print(rQ.y);
 	Serial.print("\t");
-	Serial.println(rQ.z);*/
+	Serial.println(rQ.z);
 	
 	//Update world vectors.
 	//wAccel = (rQ.conj()).rotate(bAccel);wAccel.z -= 0.91f; // Remove gravity;
@@ -119,8 +119,8 @@ void loop()
 	Serial.print("\t");
 	Serial.println(wAccel.z);*/
 
-	//looptime = micros() - loopstart;
-	//Serial.println(tLoop);
+	looptime = micros() - loopstart;
+	//Serial.println(looptime);
 }
 
 /**
@@ -257,7 +257,7 @@ void initialize()
 /**
  * Calculate the attitude quaternion.
  */
-void setQuaternion(quaternion *q, vector *w, vector *a, float t)
+void setQuaternion(quaternion *q, vector *w, vector *a, unsigned long t)
 {
 	//Local variable declaration.
 	float alpha; //Linear interpolation complementary filter weight.
@@ -270,8 +270,16 @@ void setQuaternion(quaternion *q, vector *w, vector *a, float t)
 	//Quaternion corresponding to omega.
 	//Integration of quaternion.
 	qW = q -> cross(quaternion(3.1415f, *w));
-	*q = q -> sum(qW.multiply(0.5f*0.000001f*t));
+	*q = q -> sum(qW.multiply(0.5f*0.000001f*(float)t));
 	q -> norm();
+
+	/**Serial.print(qW.w);
+	Serial.print("\t");
+	Serial.print(qW.x);
+	Serial.print("\t");
+	Serial.print(qW.y);
+	Serial.print("\t");
+	Serial.println(qW.z);*/
 
 	//Quaternion corresponding to acceleration.
 	//Tilt correction.
@@ -282,7 +290,7 @@ void setQuaternion(quaternion *q, vector *w, vector *a, float t)
 	qA.norm();
 
 	// Total quaternion.
-	*q = q -> cross(qA);
+	//*q = q -> cross(qA);
 }
 
 /**

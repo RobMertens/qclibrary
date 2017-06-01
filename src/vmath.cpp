@@ -17,7 +17,7 @@
 /*******************************************************************************
  * Constructor for a null-vector.
  ******************************************************************************/
-vector::vector()
+vector::vector(void)
 {
 	x = 0.0f;
 	y = 0.0f;
@@ -34,9 +34,9 @@ vector::vector()
  ******************************************************************************/
 vector::vector(float x, float y, float z)
 {
-	x = x;
-	y = y;
-	z = z;
+	this->x = x;
+	this->y = y;
+	this->z = z;
 	m = mag();
 }
 
@@ -84,9 +84,9 @@ vector vector::substract(vector v)
  ******************************************************************************/
 vector vector::multiply(float s)
 {
-	return vector(x*s,
-		      y*s,
-		      z*s);
+	return vector(s*x,
+		      s*y,
+		      s*z);
 }
 
 /*******************************************************************************
@@ -126,7 +126,7 @@ vector vector::cross(vector v)
 /*******************************************************************************
  * Constructor for a real unit quaternion.
  ******************************************************************************/
-quaternion::quaternion()
+quaternion::quaternion(void)
 {
 	w = 1.0f;
 	x = 0.0f;
@@ -160,10 +160,10 @@ quaternion::quaternion(float a, vector e)
  ******************************************************************************/
 quaternion::quaternion(float w, float x, float y, float z)
 {
-	w = w;
-	x = x;
-	y = y;
-	z = z;
+	this->w = w;
+	this->x = x;
+	this->y = y;
+	this->z = z;
 	m = mag();
 }
 
@@ -206,9 +206,9 @@ quaternion quaternion::conj(void)
 quaternion quaternion::inv(void)
 {
 	return quaternion(w/m,
-			  x/=(-1.0f*m),
-			  y/=(-1.0f*m),
-			  z/=(-1.0f*m));
+			  x/(-1.0f*m),
+			  y/(-1.0f*m),
+			  z/(-1.0f*m));
 }
 
 /*******************************************************************************
