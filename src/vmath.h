@@ -3,69 +3,88 @@
 
 #include <math.h>
 
-class vector
+namespace vmath
 {
-	public:
-		//Variables ******************************************************************
-		float x;
-		float y;
-		float z;
-		float m;
 
-		//Constructors ***************************************************************
-		vector(void);
-		vector(float, float, float);
+	//Vector class ***************************************************************
+	class vector
+	{
+		public:
+			//Typedefs ***************************************************************
+			typedef vector * ptr;//typedef std::shared_ptr<vector> ptr;
+			typedef vector * const cptr;//typedef std::shared_ptr<const vector> cptr;
 
-		//Setters ********************************************************************
-		vector norm(void);
+			//Variables **************************************************************
+			float _x;
+			float _y;
+			float _z;
+			float _m;
 
-		//Getters ********************************************************************
-		float mag(void);
-		float dot(vector);
+			//Constructors ***********************************************************
+			vector(void);
+			vector(const float, const float, const float);
 
-		vector sum(vector);
-		vector substract(vector);
-		vector multiply(float);
-		vector cross(vector);
-	
-	private:
+			//Setters ****************************************************************
+			void normalize(void);
+			void multiply(const float);
 
-};
+			//Getters ****************************************************************
+			float mag(void);
 
-class quaternion
-{
-	public:
-		//Variables ******************************************************************
-		float w;
-		float x;
-		float y;
-		float z;
-		float m; 
+	}; //End vector class.
 
-		//Constructors ***************************************************************
-		quaternion(void);
-		quaternion(float, vector);
-		quaternion(float, float, float, float);
+	//Functions for vector math **************************************************
+	void sum(const vector::cptr&, const vector::cptr&, vector::cptr&);
+	void subtract(const vector::cptr&, const vector::cptr&, vector::cptr&);
+	void cross(const vector::cptr&, const vector::cptr&, vector::cptr&);
+	float dot(const vector::cptr&, const vector::cptr&);
 
-		//Setters ********************************************************************
-		quaternion norm(void);
-		quaternion conj(void);
-		quaternion inv(void);
+	//Quaternion class ***********************************************************
+	class quaternion
+	{
+		public:
+			//Typedefs ***************************************************************
+			typedef quaternion * ptr;//typedef std::shared_ptr<quaternion> ptr;
+			typedef quaternion * const cptr;//typedef std::shared_ptr<const quaternion> cptr;
 
-		//Getters ********************************************************************     
-		float mag(void);
-		float dot(quaternion);    
-		
-		quaternion sum(quaternion);
-		quaternion multiply(float);
-		quaternion cross(quaternion); //Quaternion cross product.
+			//Variables **************************************************************
+			float _w;
+			float _x;
+			float _y;
+			float _z;
+			float _m;
 
-		vector rotate(vector);
-		vector q2euler(void);
+			//Constructors ***********************************************************
+			quaternion(void);
+			quaternion(const vector::cptr&, const float);
+			quaternion(const float, const float, const float, const float);
 
-	private:
+			//Setters ****************************************************************
+			void normalize(void);
+			void conjugate(void);
+			void inverse(void);
+			void multiply(const float);
 
-};
+			//Getters ****************************************************************
+			float mag(void);
+
+	}; //End quaternion class.
+
+	//Functions for quaternion math **********************************************
+	void normalize(const quaternion::cptr&, quaternion::cptr&);
+	void conjugate(const quaternion::cptr&, quaternion::cptr&);
+	void inverse(const quaternion::cptr&, quaternion::cptr&);
+	void sum(const quaternion::cptr&, const quaternion::cptr&, quaternion::cptr&);
+	void subtract(const quaternion::cptr&, const quaternion::cptr&, quaternion::cptr&);
+	void multiply(const quaternion::cptr&, const float, quaternion::cptr&);
+	void cross(const quaternion::cptr&, const quaternion::cptr&, quaternion::cptr&); //Quaternion cross product.
+	float dot(const quaternion::cptr&, const quaternion::cptr&);
+
+	//Functions for orientation math *********************************************
+	void rotate(const quaternion::cptr&, const vector::cptr&, vector::cptr&);
+	void q2euler(const quaternion::cptr&, vector::cptr&);
+	void euler2q(const vector::cptr&, quaternion::cptr&);
+
+}; //End vmath namespace.
 
 #endif
-

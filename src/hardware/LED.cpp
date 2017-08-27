@@ -1,11 +1,11 @@
 /******************************************************************************
  * Quadcopter-Library-v1
  * LED.cpp
- *  
+ *
  * This file contains predefined functions for the LED-class.
- * 
+ *
  * TODO::support multiple LED's.
- * 
+ *
  * @author Rob Mertens
  * @version 1.0.1 14/08/2016
  ******************************************************************************/
@@ -15,13 +15,16 @@
 /*******************************************************************************
  * Constructor for the LED-class.
  ******************************************************************************/
-LED::LED(volatile uint8_t * ddr, uint8_t ddrmsk, volatile uint8_t * pin, volatile uint8_t * port)
-{	
+LED::LED(volatile uint8_t * ddr,
+				 const uint8_t ddrmsk,
+				 volatile uint8_t * pin,
+				 volatile uint8_t * port)
+{
 	_ddr	= ddr;
 	*_ddr	|= ddrmsk;							// Put definitions in local variables.
 	_pin	= pin;
 	_port	= port;
-	
+
 	_HIGH	= *_ddr;
 	_LOW	= *_ddr ^ 0xFF;
 }
@@ -29,7 +32,7 @@ LED::LED(volatile uint8_t * ddr, uint8_t ddrmsk, volatile uint8_t * pin, volatil
 /*******************************************************************************
  * Method for turning the LED-state on.
  ******************************************************************************/
-void LED::set()
+void LED::set(void)
 {
 	*_port |= _HIGH;
 }
@@ -37,7 +40,7 @@ void LED::set()
 /*******************************************************************************
  * Method for turning the LED-state off.
  ******************************************************************************/
-void LED::reset()
+void LED::reset(void)
 {
 	*_port &= _LOW;
 }
@@ -45,7 +48,7 @@ void LED::reset()
 /*******************************************************************************
  * Method for turning the LED-state off.
  ******************************************************************************/
-void LED::toggle()
+void LED::toggle(void)
 {
 	*_port ^= 0xFF;
 }
@@ -55,11 +58,11 @@ void LED::toggle()
  *
  * @return state The current LED-state (TRUE/FALSE).
  ******************************************************************************/
-bool LED::getState()
+bool LED::getState(void)
 {
 	bool state = false;
-	
+
 	if(*_pin & 0x80)state = true;
-	
+
 	return state;
 }

@@ -1,12 +1,10 @@
 /******************************************************************************
  * Quadcopter-Library-v1
- * math.cpp
- *  
+ * vmath.cpp
+ *
  * This file contains the vector and quaternion class which represent vectors
  * with respectively three and four entries. These classes also contain the
  * general mathematical operations and some special quaternion related operations.
- *
- * TODO::Generalizing vector class and extend as quaternion class.
  *
  * @author Rob Mertens
  * @version 1.0.1 14/08/2016
@@ -14,15 +12,18 @@
 
 #include "vmath.h"
 
+namespace vmath
+{
+
 /*******************************************************************************
  * Constructor for a null-vector.
  ******************************************************************************/
 vector::vector(void)
 {
-	x = 0.0f;
-	y = 0.0f;
-	z = 0.0f;
-	m = 0.0f;
+	_x = 0.0f;
+	_y = 0.0f;
+	_z = 0.0f;
+	_m = 0.0f;
 }
 
 /*******************************************************************************
@@ -32,82 +33,86 @@ vector::vector(void)
  * @param y The y value as a float.
  * @param z The z value as a float.
  ******************************************************************************/
-vector::vector(float x, float y, float z)
+vector::vector(const float x, const float y, const float z)
 {
-	this->x = x;
-	this->y = y;
-	this->z = z;
-	m = mag();
+	_x = x;
+	_y = y;
+	_z = z;
+	_m = mag();
 }
 
 /*******************************************************************************
  *	Method for normalizing the vector as Euclidean norm.
  ******************************************************************************/
-vector vector::norm(void)
+void vector::normalize(void)
 {
-	return vector(x/m,
-		      y/m,
-		      z/m);
+	_x /= m;
+	_x /= m;
+	_x /= m;
+	_m = 1.0f;
 }
 
 /*******************************************************************************
- * Method for summizing the instance with another vector instance.
- * 
- * @param v The operand vector.
- * @return result The result vector.
+ *	Method for normalizing the vector as Euclidean norm.
  ******************************************************************************/
-vector vector::sum(vector v)
+void vector::multiply(const float s)
 {
-	return vector(x + v.x,
-		      y + v.y,
-		      z + v.z);
-}
-
-/*******************************************************************************
- * Method for substracting the instance with another vector instance.
- * 
- * @param v The operand vector.
- * @return result The result vector.
- ******************************************************************************/
-vector vector::substract(vector v)
-{
-	return vector(x - v.x,
-		      y - v.y,
-		      z - v.z);
-}
-
-/*******************************************************************************
- * Method for multiplying the instance with a scalar.
- * 
- * @param s The operand scalar.
- * @return result The result vector.
- ******************************************************************************/
-vector vector::multiply(float s)
-{
-	return vector(s*x,
-		      s*y,
-		      s*z);
+	_x *= s;
+	_y *= s;
+	_z *= s;
+	_m = mag();
 }
 
 /*******************************************************************************
  * Method for calculating the vector magnitude.
- * 
+ *
  * @return m The magnitude float.
  ******************************************************************************/
 float vector::mag(void)
 {
-	return sqrt(x*x + y*y + z*z);
+	return sqrt(_x*_x + _y*_y + _z*_z);
 }
 
 /*******************************************************************************
- * Method for calculating the dot product of the instance with another vector instance.
- * 
+ * Method for summizing the instance with another vector instance.
+ *
  * @param v The operand vector.
- * @return result The result float.
+ * @return result The result vector.
  ******************************************************************************/
-float vector::dot(vector v)
+void sum(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
 {
-	return (x*v.x + y*v.y + z*v.z);
+	res->_x = v->_x + w->_x;
+	res->_y = v->_y + w->_y;
+	res->_z = v->_z + w->_z;
+	res->_m = res->mag();
+}
+
+/*******************************************************************************
+ * Method for subtracting the instance with another vector instance.
+ *
+ * @param v The operand vector.
+ * @return result The result vector.
+ ******************************************************************************/
+void subtract(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
+{
+ 	res->_x = v->_x - w->_x;
+ 	res->_y = v->_x - w->_y;
+ 	res->_z = v->_x - w->_z;
+ 	res->_m = res->mag();
+}
+
+/*******************************************************************************
+ * Method for multiplying the instance with a scalar.
+ *
+ * @param s The operand scalar.
+ * @return result The result vector.
+ ******************************************************************************/
+void multiply(const vector::cptr& v, const float s, vector::cptr& res)
+{
+	res->_x = v->_x*s;
+ 	res->_y = v->_y*s;
+ 	res->_z = v->_z*s;
+ 	res->_m = res->mag();
 }
 
 /*******************************************************************************
@@ -116,11 +121,23 @@ float vector::dot(vector v)
  * @param v The operand vector.
  * @return result The result vector.
  ******************************************************************************/
-vector vector::cross(vector v)
+void cross(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
 {
-	return vector(y*v.z - z*v.y,
-		      z*v.x - x*v.z,
-		      x*v.y - y*v.x);
+	res->_x = v->_y*w->_z - v->_z*w->_y;
+	res->_y = v->_z*w->_x - v->_x*w->_z;
+	res->_z = v->_x*w->_y - v->_y*w->_x;
+	res->_m = res->mag();
+}
+
+/*******************************************************************************
+ * Method for calculating the dot product of the instance with another vector instance.
+ *
+ * @param v The operand vector.
+ * @return result The result float.
+ ******************************************************************************/
+float vector::dot(const vector::cptr& v, const vector::cptr& w)
+{
+	return (v->_x*w->_x + v->_y*w->_y + v->_z*w->_z);
 }
 
 /*******************************************************************************
@@ -128,11 +145,11 @@ vector vector::cross(vector v)
  ******************************************************************************/
 quaternion::quaternion(void)
 {
-	w = 1.0f;
-	x = 0.0f;
-	y = 0.0f;
-	z = 0.0f;
-	m = 1.0f; 
+	_w = 1.0f;
+	_x = 0.0f;
+	_y = 0.0f;
+	_z = 0.0f;
+	_m = 1.0f;
 }
 
 /*******************************************************************************
@@ -141,150 +158,222 @@ quaternion::quaternion(void)
  * @param a The rotation angle float.
  * @param e The rotation vector.
  ******************************************************************************/
-quaternion::quaternion(float a, vector e)
+quaternion::quaternion(const vector::cptr& e, const float a)
 {
-	w = cos(0.5*a);
-	x = (e.x)*sin(0.5*a);
-	y = (e.y)*sin(0.5*a);
-	z = (e.z)*sin(0.5*a);
-	m = mag();
+	_w = cos(0.5*a);
+	_x = (e->_x)*sin(0.5*a);
+	_y = (e->_y)*sin(0.5*a);
+	_z = (e->_z)*sin(0.5*a);
+	_m = mag();
 }
 
 /*******************************************************************************
  * Constructor for a quaternion.
- * 
+ *
  * @param w The w value float.
  * @param x The x value float.
  * @param y The y value float.
  * @param z The z value float.
  ******************************************************************************/
-quaternion::quaternion(float w, float x, float y, float z)
+quaternion::quaternion(const float w, const float x, const float y, const float z)
 {
-	this->w = w;
-	this->x = x;
-	this->y = y;
-	this->z = z;
-	m = mag();
-}
-
-/*******************************************************************************
- * Method for calculating the magnitude.
- * 
- * @return m The quaternion magnitude.
-
- ******************************************************************************/
-float quaternion::mag(void)
-{
-	return sqrt(w*w + x*x + y*y + z*z);
+	_w = w;
+	_x = x;
+	_y = y;
+	_z = z;
+	_m = mag();
 }
 
 /*******************************************************************************
  * Method for normalizing the quaternion as Euclidean norm.
  ******************************************************************************/
-quaternion quaternion::norm(void)
+void quaternion::normalize(void)
 {
-	return quaternion(w/m,
-			  x/m,
-			  y/m,
-			  z/m);
+	_w /= _m;
+	_x /= _m;
+	_y /= _m;
+	_z /= _m;
+	_m = 1.0f;
+}
+
+/*******************************************************************************
+ * Method for normalizing the quaternion as Euclidean norm.
+ ******************************************************************************/
+void normalize(const quaternion::cptr& q, quaternion::cptr& res)
+{
+	res->_w = q->_w/q->_m;
+	res->_x = q->_x/q->_m;
+	res->_y = q->_y/q->_m;
+	res->_z = q->_z/q->_m;
+	res->_m = 1.0f;
 }
 
 /*******************************************************************************
  * Method for obtaining the conjugate quaternion.
  ******************************************************************************/
-quaternion quaternion::conj(void)
+void quaternion::conjugate(void)
 {
-	return quaternion(w,
-			  x*(-1.0f),
-			  y*(-1.0f),
-			  z*(-1.0f));
+	///_w remains unchanged.
+	_x *= (-1.0f);
+	_y *= (-1.0f);
+	_z *= (-1.0f);
+	//_m remains unchanged.
+}
+
+/*******************************************************************************
+ * Method for obtaining the conjugate quaternion.
+ ******************************************************************************/
+void conjugate(const quaternion::cptr& q, quaternion::cptr& res)
+{
+	res->_w = q->_w;
+	res->_x = q->_x*(-1.0f);
+	res->_y = q->_y*(-1.0f);
+	res->_z = q->_z*(-1.0f);
+	res->_m = q->_m;
 }
 
 /*******************************************************************************
  * Method for obtaining the inverse quaternion.
  ******************************************************************************/
-quaternion quaternion::inv(void)
+void quaternion::inverse(void)
 {
-	return quaternion(w/m,
-			  x/(-1.0f*m),
-			  y/(-1.0f*m),
-			  z/(-1.0f*m));
+	_w /= _m;
+	_x /= (-1.0f*_m);
+	_y /= (-1.0f*_m);
+	_z /= (-1.0f*_m);
+	_m = 1.0f;
+}
+
+/*******************************************************************************
+ * Method for multiplying the quaternion with a scalar.
+ *
+ * @param s The operand float.
+ ******************************************************************************/
+void quaternion::multiply(const float s)
+{
+	_w *= s;
+	_x *= s;
+	_y *= s;
+	_z *= s;
+	_m = mag();
+}
+
+/*******************************************************************************
+ * Method for calculating the magnitude.
+ *
+ * @return m The quaternion magnitude.
+
+ ******************************************************************************/
+float quaternion::mag(void)
+{
+	return sqrt(_w*_w + _x*_x + _y*_y + _z*_z);
 }
 
 /*******************************************************************************
  * Method for summizing the instance with another quaternion instance.
- * 
+ *
  * @param q The operand quaternion.
  * @return result The result quaternion.
  ******************************************************************************/
-quaternion quaternion::sum(quaternion q)
+void sum(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cptr& res)
 {
-	return quaternion(w + q.w,
-			  x + q.x,
-			  y + q.y,
-			  z + q.z);
+	res->_w = q->_w + p->_w;
+	res->_x = q->_x + p->_x;
+	res->_y = q->_y + p->_y;
+	res->_z = q->_z + p->_z;
+	res->_m = res->mag();
 }
 
 /*******************************************************************************
- * Method for calculating the dot product of the instance with another quaternion instance.
- * 
+ * Method for summizing the instance with another quaternion instance.
+ *
  * @param q The operand quaternion.
- * @return result The result float.
+ * @return result The result quaternion.
  ******************************************************************************/
-float quaternion::dot(quaternion q)
+void subtract(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cptr& res)
 {
-	return (w*q.w + x*q.x + y*q.y + z*q.z);
+	res->_w = q->_w + p->_w;
+	res->_x = q->_x + p->_x;
+	res->_y = q->_y + p->_y;
+	res->_z = q->_z + p->_z;
+	res->_m = res->mag();
 }
 
 /*******************************************************************************
- * Method for multiplying the instance with a scalar.
- * 
+ * Method for multiplying a quaternion with a scalar.
+ *
  * @param s The operand float.
  * @return result The result quaternion.
  ******************************************************************************/
-quaternion quaternion::multiply(float s)
-{        
-	return quaternion(s*w,
-			  s*x,
-			  s*y,
-			  s*z);
+void multiply(const quaternion::cptr& q, const float s, quaternion::cptr& res)
+{
+	res->_w = q->_w*s;
+	res->_x = q->_x*s;
+	res->_y = q->_y*s;
+	res->_z = q->_z*s;
+	res->_m = res->mag();
 }
 
 /*******************************************************************************
  * Method for multiplying the instance with another quaternion instance.
- * 
+ *
  * @param q The operand quaternion.
  * @return result The result quaternion.
  ******************************************************************************/
-quaternion quaternion::cross(quaternion q)
+void cross(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cptr& res)
 {
-	return quaternion(w*q.w - x*q.x - y*q.y - z*q.z,
-			  w*q.x + x*q.w + y*q.z - z*q.y,
-			  w*q.y - x*q.z + y*q.w + z*q.x,
-			  w*q.z + x*q.y - y*q.x + z*q.w);
+	res->_w = q->_w*p->_w - q->_x*p->_x - q->_y*p->_y - q->_z*p->_z,
+	res->_x = q->_w*p->_x + q->_x*p->_w + q->_y*p->_z - q->_z*p->_y,
+	res->_y = q->_w*p->_y - q->_x*p->_z + q->_y*p->_w + q->_z*p->_x,
+	res->_z = q->_w*p->_z + q->_x*p->_y - q->_y*p->_x + q->_z*p->_w);
+	res->_m = res->mag();
+}
+
+/*******************************************************************************
+ * Method for calculating the dot product of the instance with another quaternion instance.
+ *
+ * @param q The operand quaternion.
+ * @return result The result float.
+ ******************************************************************************/
+float quaternion::dot(const quaternion::cptr& q, const quaternion::cptr& p)
+{
+	return (q->_w*p->_w + q->_x*p->_x + q->_y*p->_y + q->_z*p->_z);
 }
 
 /*******************************************************************************
  * Method for rotating a vector over an instance quaternion.
- * 
+ *
+ * @param q The quaternion describing the rotation.
  * @param v The operand vector.
- * @return result The result vector.
+ * @param res The result vector.
  ******************************************************************************/
-vector quaternion::rotate(vector v)
+void rotate(const quaternion::cptr& q, const vector::cptr& v, vector::cptr& res)
 {
-	return vector((w*w + x*x - y*y - z*z)*v.x + 	      2*(x*y - w*z)*v.y + 	    2*(x*z + w*y)*v.z,
-				2*(x*y + w*z)*v.x + (w*w - x*x + y*y - z*z)*v.y + 	    2*(y*z - w*x)*v.z,
-				2*(x*z - w*y)*v.x + 	      2*(y*z + w*x)*v.y + (w*w - x*x - y*y + z*z)*v.z);
+	res->_x = (q->_w*q->_w + q->_x*q->_x - q->_y*q->_y - q->_z*q->_z)*v->_x + 2*(q->_x*q->_y - q->_w*q->_z)*v->_y + 2*(q->_x*q->_z + q->_w*q->_y)*v->_z;
+	res->_y = 2*(q->_x*q->_y + q->_w*q->_z)*v->_x + (q->_w*q->_w - q->_x*q->_x + q->_y*q->_y - q->_z*q->_z)*v->_y + 2*(q->_y*q->_z - q->_w*q->_x)*v->_z;
+	res->_z = 2*(q->_x*q->_z - q->_w*q->_y)*v->_x + 2*(q->_y*q->_z + q->_w*q->_x)*v->_y + (q->_w*q->_w - q->_x*q->_x - q->_y*q->_y + q->_z*q->_z)*v->_z;
+	res->_m = res->mag();
 }
 
 /*******************************************************************************
  * Method for obtaining the corresponding XYZ-Euler angles from a quaternion rotation.
- * 
+ *
  * @return result The result vector.
  ******************************************************************************/
-vector quaternion::q2euler(void)
+void q2euler(const quaternion::cptr& q, vector::cptr& res)
 {
-	return vector(atan2(2*(w*x + y*z), w*w - x*x - y*y + z*z),
-		      asin(2*(w*y - x*z)),
-		      atan2(2*(x*y + w*z), w*w + x*x - y*y - z*z));
+	res->_x = atan2(2*(q->_w*q->_x + q->_y*q->_z), q->_w*q->_w - q->_x*q->_x - q->_y*q->_y + q->_z*q->_z);
+	res->_y = asin(2*(q->_w*q->_y - q->_x*q->_z));
+	res->_z = atan2(2*(q->_x*q->_y + q->_w*q->_z), q->_w*q->_w + q->_x*q->_x - q->_y*q->_y - q->_z*q->_z));
+	res->_m = res->mag();
 }
+
+/*******************************************************************************
+ * TODO::
+ ******************************************************************************/
+void euler2q(const vector::cptr& v, quaternion::cptr& res)
+{
+	;;
+}
+
+}; //End namespace

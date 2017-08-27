@@ -40,10 +40,10 @@ class controller
 		void assignReceiver(RX*, rx_mode);
 		void assignPids(PID*, PID*, PID*);
 		void assignDrives(ESC*, ESC*, ESC*, ESC*);
-		
+
 		void initialize(void);
 		void update(void);
-		
+
 		void updateReceiverData(void);
 		void updateDesiredAttitude(void);
 		void updateSafetyState(void);
@@ -57,11 +57,11 @@ class controller
 		void stopMotors(void);
 		void enableMotors(void);
 		void disableMotors(void);
-		
+
 		//Getters ********************************************************************
 		bool getMovement(float p);
 		float getLooptime(void);
-		
+
 		vector getState(void);
 		/**quaternion getAttitude(void);
 		vector getAttitude(void);
@@ -72,83 +72,82 @@ class controller
 		vector getGlobalCompensatedAcceleration(void);
 		vector getGlobalVelocity(void);
 		vector getGlobalPosition(void);*/
-		
+
 		int8_t monitorBattery(void);
 		int8_t getSafetyState(void);
-		
+
 	private:
 		// Hardware components
 		ESC * _esc1;
 		ESC * _esc2;
 		ESC * _esc3;
 		ESC * _esc4;
-		
+
 		PID * _pidRoll;
 		PID * _pidPitch;
 		PID * _pidYaw;
-		
+
 		RX * _rec;
-		
+
 		MPU6050 * _imu;
-		
+
 		timer16 _watchdog;		//Watchdog timer for checking calculations time.
-		
+
 		float _looptime;
 		
 		// State vectors
 		const vector _unitX = vector(1.0, 0.0, 0.0);
 		const vector _unitY = vector(0.0, 1.0, 0.0);
 		const vector _unitZ = vector(0.0, 0.0, 1.0);
-		
+
 		vector _omegaRaw;
 		vector _accelRaw;
-		
+
 		vector _omegaLocal;
 		vector _accelLocal;
-		
+
 		quaternion _qDes;		//Desired attitude/orientation quaternion.
 		quaternion _qAtt;		//Actual attitude/orientation quaternion.
 		quaternion _qEst;		//Estimated orientation quaternion.
 		quaternion _qCorr;		//Correction quaternion.
 		vector _eulerZXY; 		//RPY angles.
-		
+
 		vector _accelWorld;
 		vector _accelWorldGravityCompensated;
-		
+
 		const float _maxRoll  = 0.78539816339;
 		const float _maxPitch = 0.78539816339;
 		const float _maxYaw   = 6.28318530718;
 		const quaternion _qI = quaternion(); //Unit quaternion.
 		const vector _maxRPS = vector(200.0, 200.0, 200.0);
-		
+
 		// Config.
 		c_layout _layout;
-		
+
 		// Safety state.
 		int8_t _safety;
-		
+
 		// Control.
 		float  _desiredThrottleDc;
 		vector _desiredThetaDc;
 		vector _desiredThetaRad;
 		vector _desiredOmegaRPS;
 		vector _desiredOmegaDc;
-				
+
 		float _esc1Dc;
 		float _esc2Dc;
 		float _esc3Dc;
 		float _esc4Dc;
-		
+
 		float _dbDc;
 		float _maxDbDc;
 		float _minDbDc;
-		
+
 		//
 		vector getFeedbackDc(void);
-		
+
 		void setQuaternion(quaternion *, vector *, vector *);
 		bool getMovement(vector *, float);
-		
+
 };
 #endif
-
