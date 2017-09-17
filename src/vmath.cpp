@@ -68,6 +68,66 @@ void vector::multiply(const float s)
  *
  * @return m The magnitude float.
  ******************************************************************************/
+void vector::x(const float _x)
+{
+	this->_x = _x;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+void vector::y(const float _y)
+{
+	this->_y = _y;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+void vector::z(const float _z)
+{
+	this->_z = _z;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+float vector::x(void)
+{
+	return _x;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+float vector::y(void)
+{
+	return _y;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+float vector::z(void)
+{
+	return _z;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
 float vector::mag(void)
 {
 	return sqrt(_x*_x + _y*_y + _z*_z);
@@ -259,6 +319,86 @@ void quaternion::multiply(const float s)
 }
 
 /*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+void quaternion::w(const float w)
+{
+	_w = w;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+void quaternion::x(const float x)
+{
+	_x = x;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+void quaternion::y(const float y)
+{
+	_y = y;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+void quaternion::z(const float z)
+{
+	_z = z;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+float quaternion::w(void)
+{
+	return _w;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+float quaternion::x(void)
+{
+	return _x;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+float quaternion::y(void)
+{
+	return _y;
+}
+
+/*******************************************************************************
+ * Method for calculating the vector magnitude.
+ *
+ * @return m The magnitude float.
+ ******************************************************************************/
+float quaternion::z(void)
+{
+	return _z;
+}
+
+/*******************************************************************************
  * Method for calculating the magnitude.
  *
  * @return m The quaternion magnitude.
@@ -353,6 +493,53 @@ void rotate(const quaternion::cptr& q, const vector::cptr& v, vector::cptr& res)
 	res->_y = 2*(q->_x*q->_y + q->_w*q->_z)*v->_x + (q->_w*q->_w - q->_x*q->_x + q->_y*q->_y - q->_z*q->_z)*v->_y + 2*(q->_y*q->_z - q->_w*q->_x)*v->_z;
 	res->_z = 2*(q->_x*q->_z - q->_w*q->_y)*v->_x + 2*(q->_y*q->_z + q->_w*q->_x)*v->_y + (q->_w*q->_w - q->_x*q->_x - q->_y*q->_y + q->_z*q->_z)*v->_z;
 	res->_m = res->mag();
+}
+
+/*******************************************************************************
+ * Method for rotating a vector over an instance quaternion.
+ *
+ * @param q The quaternion describing the rotation.
+ * @param v The operand vector.
+ * @param res The result vector.
+ ******************************************************************************/
+void lerp(const quaternion::cptr& q,
+					const quaternion::cptr& p,
+					const float alpha,
+					quaternion::cptr& res)
+{
+	quaternion::ptr operand1(new quaternion);
+	quaternion::ptr operand2(new quaternion);
+	multiply(q, 1-alpha, operand1);
+	multiply(p, alpha, operand2);
+	sum(operand1, operand2, res);
+	res->normalize();
+}
+
+/*******************************************************************************
+ * Method for rotating a vector over an instance quaternion.
+ *
+ * @param q The quaternion describing the rotation.
+ * @param v The operand vector.
+ * @param res The result vector.
+ ******************************************************************************/
+void slerp(const quaternion::cptr& q,
+					const quaternion::cptr& p,
+					const float alpha,
+					quaternion::cptr& res)
+{
+	float omega;
+	quaternion::ptr operand1(new quaternion);
+	quaternion::ptr operand2(new quaternion);
+	omega = acos(dot(q, p));
+	if(fabs(omega) > 0.9995f)
+	{
+		lerp(q, p, alpha, res);
+		return;
+	}
+	if(omega < 0.0f)
+	{
+
+	}
 }
 
 /*******************************************************************************

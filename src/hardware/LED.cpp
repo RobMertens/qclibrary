@@ -13,12 +13,16 @@
 #include "hardware/LED.h"
 
 /*******************************************************************************
- * Constructor for the LED-class.
+ * @brief Constructor for the LED-class.
+ * @param ddr
+ * @param ddrmsk
+ * @param pin
+ * @param port
  ******************************************************************************/
-LED::LED(volatile uint8_t * ddr,
+LED::LED(const volatile uint8_t * const& ddr,
 				 const uint8_t ddrmsk,
-				 volatile uint8_t * pin,
-				 volatile uint8_t * port)
+				 const volatile uint8_t * const& pin,
+				 const volatile uint8_t * const& port)
 {
 	_ddr	= ddr;
 	*_ddr	|= ddrmsk;							// Put definitions in local variables.
@@ -30,7 +34,7 @@ LED::LED(volatile uint8_t * ddr,
 }
 
 /*******************************************************************************
- * Method for turning the LED-state on.
+ * @brief Method for turning the LED-state on.
  ******************************************************************************/
 void LED::set(void)
 {
@@ -38,7 +42,7 @@ void LED::set(void)
 }
 
 /*******************************************************************************
- * Method for turning the LED-state off.
+ * @brief Method for turning the LED-state off.
  ******************************************************************************/
 void LED::reset(void)
 {
@@ -46,7 +50,7 @@ void LED::reset(void)
 }
 
 /*******************************************************************************
- * Method for turning the LED-state off.
+ * @brief Method for turning the LED-state off.
  ******************************************************************************/
 void LED::toggle(void)
 {
@@ -54,8 +58,7 @@ void LED::toggle(void)
 }
 
 /*******************************************************************************
- * Method for turning the LED-state off. Used for debugging.
- *
+ * @brief Method for turning the LED-state off. Used for debugging.
  * @return state The current LED-state (TRUE/FALSE).
  ******************************************************************************/
 bool LED::getState(void)

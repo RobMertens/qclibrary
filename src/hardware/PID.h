@@ -1,19 +1,36 @@
 #ifndef _PID_H_
 #define _PID_H_
 
+//#include <memory>
 #include <stdint.h>
+
+namespace pid_settings
+{
+	enum class direction : int8_t
+	{
+		FORWARD = 1,
+		NONE		= 0,
+		REVERSE = -1
+	};
+};
+
+using namespace pid_settings;
 
 class PID
 {
 	public:
+		//Typedefs *****************************************************************
+		typedef PID * ptr;//std::shared_ptr<PID> ptr;
+		typedef PID * const cptr;//std::shared_ptr<PID const> cptr;
+
 		//Constructors *************************************************************
 		PID(void);
-		PID(const float, const float, const float, const float, const float, const int8_t=0x01);
+		PID(const float, const float, const float, const float, const float, const direction=direction::FORWARD);
 
 		//Setters ******************************************************************
 		void setOutputLimits(const float, const float);
 		void setGainValues(const float, const float, const float);
-		void setDirection(const int8_t);
+		void setDirection(const direction);
 		void reset(void);
 
 		//Getters ******************************************************************
@@ -38,7 +55,7 @@ class PID
 		float _iterm;
 		float _lastError;
 
-		int8_t _direction;
+		direction _direction;
 };
 
 #endif

@@ -1,6 +1,7 @@
 #ifndef _MPU6050_H_
 #define _MPU6050_H_
 
+//#include <memory>
 #include <Wire.h>
 #include "vmath.h"
 
@@ -13,7 +14,11 @@ using namespace vmath;
 class MPU6050
 {
   	public:
-  	/* Declarations ***********************************************************/
+    /* Typedefs ***************************************************************/
+    typedef MPU6050 * ptr; //std::shared_ptr<MPU6050> ptr;
+    typedef MPU6050 * const cptr; //std::shared_ptr<MPU6050 const> cptr;
+
+    /* Declarations ***********************************************************/
 
 		/* Constructors ***********************************************************/
 		MPU6050(const uint8_t);

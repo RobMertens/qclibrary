@@ -13,37 +13,120 @@
 #include "hardware/ESC.h"
 #include "hardware/LED.h"
 
-enum class c_mode : uint8_t
+namespace c_settings
 {
-	NONE	= 0,
-	ATT	= 1,
-	VEL	= 2,	// GPS Needed.
-	POS	= 3,	// GPS Needed.
-	HVR	= 4
-};
+	/*****************************************************************************
+	 * @brief TODO::this is future stuff.
+	 ****************************************************************************/
+	enum class mode : uint8_t
+	{
+		NONE	= 0,
+		ATT	= 1,
+		VEL	= 2,	// GPS Needed.
+		POS	= 3,	// GPS Needed.
+		HVR	= 4
+	};
 
-enum class c_layout : uint8_t
-{
-	NONE	= 0,
-	PLUS	= 1,
-	CROSS	= 2
-};
+	enum class layout : uint8_t
+	{
+		NONE	= 0,
+		PLUS	= 1,
+		CROSS	= 2
+	};
+
+	/*****************************************************************************
+	 * @brief Drone flying safety state.
+ 	 * 				TODO::more error states -> specific errors.
+	 ****************************************************************************/
+	enum class safety : int8_t
+	{
+		E1	= -1,						// Error state.
+		OFF = 0,						// Not flying.
+		T1	= 1,						// Transition state OFF -> ON.
+		ON	= 2,						// Flying.
+		T2	= 3,						// Transition state ON -> OFF.
+	};
+
+	/*****************************************************************************
+	 * @brief Drone state 40-entry vector. A lot of vectors are unused since
+	 *				this requires more sensors.
+ 	 * 				TODO::does this belong in "c_settings"?
+   * 			 [[   			 (1);					 (2); 				 (3)]
+	 * 				[=============;=============;=============]
+	 *				[  theta_local;	 omega_local;	 alpha_local]
+	 * 				[   			 (3);					 (4); 				 (5)]
+	 * 				[=============;=============;=============]
+	 *				[  theta_world;	 omega_world;	 alpha_world]
+	 * 				[   			 (6);					 (7); 				 (8)]
+	 * 				[=============;=============;=============]
+	 *				[  	 pos_local;	 	 vel_local;	 	 acc_local]
+	 * 				[   			 (9);					(10); 				(11)]
+	 * 				[=============;=============;=============]
+	 *				[  	 pos_world;	 	 vel_world;	 	 acc_world]
+	 * 				[   			(12);]
+	 * 				[=============;]
+	 *				[  	  attitude;]];
+	 ****************************************************************************/
+	struct state
+	{
+		state(void)
+		{
+			//Rotations.
+			_localTheta = &(new vector());
+			_localOmega = &(new vector());
+			_localAlpha = &(new vector());
+			_worldTheta = &(new vector());
+			_worldOmega = &(new vector());
+			_worldAlpha = &(new vector());
+			//Translations.
+			_localPos = &(new vector());
+			_localVel = &(new vector());
+			_localAcc = &(new vector());
+			_worldPos = &(new vector());
+			_worldVel = &(new vector());
+			_worldAcc = &(new vector());
+			//Transformation matrix.
+			_world_T_local = &(new quaternion());
+		}
+		//Rotations.
+		vector::ptr _localTheta;					//UNUSED.
+		vector::ptr _localOmega;
+		vector::ptr _localAlpha;					//UNUSED.
+		vector::ptr _worldTheta;					//UNUSED -> Same as quaternion.
+		vector::ptr _worldOmega;					//UNUSED.
+		vector::ptr _worldAlpha;					//UNUSED.
+		//Translations.
+		vector::ptr _localPos;						//UNUSED.
+		vector::ptr _localVel;						//UNUSED.
+		vector::ptr _localAcc;
+		vector::ptr _worldPos;						//UNUSED.
+		vector::ptr _worldVel;						//UNUSED.
+		vector::ptr _worldAcc;
+		//Transformation matrix.
+		quaternion::ptr _world_T_local;
+	};
+
+}; //End namespace c_settings.
+
+using namespace c_settings;
 
 class controller
 {
 	public:
-		//Constructors ***************************************************************
-		controller(c_layout, t_alias, float=0.04);
+		//Typedefs *****************************************************************
+		typedef controller * ptr;
+		typedef controller * const cptr;
 
-		//Setters ********************************************************************
-		void assignImu(MPU6050*);
-		void assignReceiver(RX*, rx_mode);
-		void assignPids(PID*, PID*, PID*);
-		void assignDrives(ESC*, ESC*, ESC*, ESC*);
+		//Constructors *************************************************************
+		controller(const c_settings::layout, const t_settings::alias, const float=0.04);
 
+		//Setters ******************************************************************
+		void assignImu(const MPU6050::cptr&);
+		void assignReceiver(const RX::cptr&, const rx_settings::mode);
+		void assignPids(const PID::cptr&, const PID::cptr&, const PID::cptr&);
+		void assignDrives(const ESC::cptr&, const ESC::cptr&, const ESC::cptr&, const ESC::cptr&);
 		void initialize(void);
 		void update(void);
-
 		void updateReceiverData(void);
 		void updateDesiredAttitude(void);
 		void updateSafetyState(void);
@@ -58,8 +141,8 @@ class controller
 		void enableMotors(void);
 		void disableMotors(void);
 
-		//Getters ********************************************************************
-		bool getMovement(float p);
+		//Getters ******************************************************************
+		bool getMovement(const float p);
 		float getLooptime(void);
 
 		vector getState(void);
@@ -76,78 +159,47 @@ class controller
 		int8_t monitorBattery(void);
 		int8_t getSafetyState(void);
 
+	protected:
+		//Quadcopter attributes ****************************************************
+		ESC::ptr _esc1;
+		ESC::ptr _esc2;
+		ESC::ptr _esc3;
+		ESC::ptr _esc4;
+		PID::ptr _pidRoll;
+		PID::ptr _pidPitch;
+		PID::ptr _pidYaw;
+		RX::ptr _rec;
+		MPU6050::ptr _imu;
+
 	private:
-		// Hardware components
-		ESC * _esc1;
-		ESC * _esc2;
-		ESC * _esc3;
-		ESC * _esc4;
-
-		PID * _pidRoll;
-		PID * _pidPitch;
-		PID * _pidYaw;
-
-		RX * _rec;
-
-		MPU6050 * _imu;
-
+		//Variables ****************************************************************
+		float _looptime;
+		float _esc1Dc;
+		float _esc2Dc;
+		float _esc3Dc;
+		float _esc4Dc;
+		layout _layout;
+		safety _safety;
 		timer16 _watchdog;		//Watchdog timer for checking calculations time.
 
-		float _looptime;
-		
-		// State vectors
-		const vector _unitX = vector(1.0, 0.0, 0.0);
-		const vector _unitY = vector(0.0, 1.0, 0.0);
-		const vector _unitZ = vector(0.0, 0.0, 1.0);
+		//Quadcopter state vector **************************************************
+		state _state;
 
-		vector _omegaRaw;
-		vector _accelRaw;
+		//
+		vector getFeedbackDc(void);
 
-		vector _omegaLocal;
-		vector _accelLocal;
+		void updateActualAttitude(const vector::cptr&, const vector::cptr&, const quaternion::cptr&, quaternion::cptr&);
+		bool getMovement(const vector::cptr&, const float);
 
-		quaternion _qDes;		//Desired attitude/orientation quaternion.
-		quaternion _qAtt;		//Actual attitude/orientation quaternion.
-		quaternion _qEst;		//Estimated orientation quaternion.
-		quaternion _qCorr;		//Correction quaternion.
-		vector _eulerZXY; 		//RPY angles.
-
-		vector _accelWorld;
-		vector _accelWorldGravityCompensated;
-
+		//Deprecated ***************************************************************
 		const float _maxRoll  = 0.78539816339;
 		const float _maxPitch = 0.78539816339;
 		const float _maxYaw   = 6.28318530718;
 		const quaternion _qI = quaternion(); //Unit quaternion.
 		const vector _maxRPS = vector(200.0, 200.0, 200.0);
-
-		// Config.
-		c_layout _layout;
-
-		// Safety state.
-		int8_t _safety;
-
-		// Control.
-		float  _desiredThrottleDc;
-		vector _desiredThetaDc;
-		vector _desiredThetaRad;
-		vector _desiredOmegaRPS;
-		vector _desiredOmegaDc;
-
-		float _esc1Dc;
-		float _esc2Dc;
-		float _esc3Dc;
-		float _esc4Dc;
-
 		float _dbDc;
 		float _maxDbDc;
 		float _minDbDc;
-
-		//
-		vector getFeedbackDc(void);
-
-		void setQuaternion(quaternion *, vector *, vector *);
-		bool getMovement(vector *, float);
 
 };
 #endif

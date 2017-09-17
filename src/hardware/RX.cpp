@@ -7,6 +7,7 @@
  *
  * TODO::calibration functions.
  * TODO::channel 5 functionalities.
+ * TODO::support radians/degrees -> sensitivity functionalities.
  *
  * @author Rob Mertens
  * @version 1.1.1 14/08/2016
@@ -18,9 +19,9 @@
  * Constructor for the ESC-class. By making an object with this constructor
  * all local variables are set together with the avr-timer.
  ******************************************************************************/
-RX::RX(volatile uint8_t * pcmskx,
+RX::RX(const volatile uint8_t * const& pcmskx,
 			 const uint8_t pcint,
-			 const t_alias alias,
+			 const t_settings::alias alias,
 			 const uint16_t periodMicrosecond,
 			 const uint16_t maxMicrosecond,
 			 const uint16_t minMicrosecond)
@@ -71,34 +72,34 @@ RX::RX(volatile uint8_t * pcmskx,
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-void RX::initialize(const rx_mode mode)
+void RX::initialize(const rx_settings::mode mode)
 {
 	_t.initialize(t_mode::NORMAL, t_interrupt::OVF);			// Set up the 8-bit timer prescaler value 64.
-	_t.setPrescaler(1); 							// Maximum possible time for one timer run can be calculated.
-	_t.reset();								// (timer_max) = (2^8 - 1) * (prescale / 16M) = 15,9375us
-										// Per overflow flag the overflow word stores one timer value.
-	enable();								// Maximum possible time with overflows can be calculated.
-										// (ovf_max) = (2^32) * 15,9375us = 68451s = 19h00m51s
-	setMode(mode);								// The drone will never fly 19 hours, so OK.
+	_t.setPrescaler(1); 																	// Maximum possible time for one timer run can be calculated.
+	_t.reset();																						// (timer_max) = (2^8 - 1) * (prescale / 16M) = 15,9375us
+																												// Per overflow flag the overflow word stores one timer value.
+	enable();																							// Maximum possible time with overflows can be calculated.
+																												// (ovf_max) = (2^32) * 15,9375us = 68451s = 19h00m51s
+	setMode(mode);																				// The drone will never fly 19 hours, so OK.
 }
 
 /*******************************************************************************
  * Method for initializing the receiver.
  ******************************************************************************/
-int8_t RX::setMode(const rx_mode mode)
+int8_t RX::setMode(const rx_settings::mode mode)
 {
 	int8_t ret = 0;
-	_mode = rx_mode::NONE;
+	_mode = rx_settings::mode::NONE;
 
 	switch(mode)
 	{
-		case rx_mode::M1:
+		case rx_settings::mode::M1:
 			setMode2M1();
 
-		case rx_mode::M2:
+		case rx_settings::mode::M2:
 			setMode2M2();
 
-		case rx_mode::NONE:
+		case rx_settings::mode::NONE:
 		default:
 			ret = -1;
 			return ret;
@@ -131,12 +132,10 @@ void RX::setMode2M2(void)
 	assignYawChannel(0x04);
 }
 
-
 /*******************************************************************************
- * Method for assigning the throttle channel.
- *
- * @param:
- * @return:
+ * @brief Method for assigning the throttle channel.
+ * @param
+ * @return
  ******************************************************************************/
 int8_t RX::assignThrottleChannel(const uint8_t channel)
 {
@@ -146,25 +145,27 @@ int8_t RX::assignThrottleChannel(const uint8_t channel)
 	{
 		case 0x01:
 			_throttleChannel = &_channel1;
-
+			break;
 		case 0x02:
 			_throttleChannel = &_channel2;
-
+			break;
 		case 0x03:
 			_throttleChannel = &_channel3;
-
+			break;
 		case 0x04:
 			_throttleChannel = &_channel4;
-
+			break;
 		default:
 			ret = -1;
+			break;
 	}
 
 	return ret;
 }
 
 /*******************************************************************************
- * Method for initializing the receiver.
+ * @brief Method for initializing the receiver.
+ * @return dc The actual throttle value in dutycycle.
  ******************************************************************************/
 float RX::getThrottleChannel(void)
 {
@@ -179,7 +180,6 @@ float RX::getThrottleChannel(void)
 
 /*******************************************************************************
  * Method for assigning the throttle channel.
- *
  * @param:
  * @return:
  ******************************************************************************/
@@ -190,26 +190,28 @@ int8_t RX::assignPitchChannel(const uint8_t channel)
 	switch(channel)
 	{
 		case 0x01:
-		_pitchChannel = &_channel1;
-
+			_pitchChannel = &_channel1;
+			break;
 		case 0x02:
-		_pitchChannel = &_channel2;
-
+			_pitchChannel = &_channel2;
+			break;
 		case 0x03:
-		_pitchChannel = &_channel3;
-
+			_pitchChannel = &_channel3;
+			break;
 		case 0x04:
-		_pitchChannel = &_channel4;
-
+			_pitchChannel = &_channel4;
+			break;
 		default:
-		ret = -1;
+			ret = -1;
+			break;
 	}
 
 	return ret;
 }
 
 /*******************************************************************************
- * Method for initializing the receiver.
+ * @brief Method for initializing the receiver.
+ * @return
  ******************************************************************************/
 float RX::getPitchChannel(void)
 {
@@ -225,9 +227,8 @@ float RX::getPitchChannel(void)
 
 /*******************************************************************************
  * Method for assigning the throttle channel.
- *
- * @param:
- * @return:
+ * @param
+ * @return
  ******************************************************************************/
 int8_t RX::assignRollChannel(const uint8_t channel)
 {
@@ -236,26 +237,29 @@ int8_t RX::assignRollChannel(const uint8_t channel)
 	switch(channel)
 	{
 		case 0x01:
-		_rollChannel = &_channel1;
-
+			_rollChannel = &_channel1;
+			break;
 		case 0x02:
-		_rollChannel = &_channel2;
-
+			_rollChannel = &_channel2;
+			break;
 		case 0x03:
-		_rollChannel = &_channel3;
-
+			_rollChannel = &_channel3;
+			break;
 		case 0x04:
-		_rollChannel = &_channel4;
-
+			_rollChannel = &_channel4;
+			break;
 		default:
-		ret = -1;
+			ret = -1;
+			break;
 	}
 
 	return ret;
 }
 
 /*******************************************************************************
- * Method for initializing the receiver.
+ * @brief Method for initializing the receiver.
+ *				TODO::introduce some deadband.
+ * @return
  ******************************************************************************/
 float RX::getRollChannel(void)
 {
@@ -270,10 +274,9 @@ float RX::getRollChannel(void)
 }
 
 /*******************************************************************************
- * Method for assigning the throttle channel.
- *
- * @param:
- * @return:
+ * @brief Method for assigning the throttle channel.
+ * @param
+ * @return
  ******************************************************************************/
 int8_t RX::assignYawChannel(const uint8_t channel)
 {
@@ -282,26 +285,28 @@ int8_t RX::assignYawChannel(const uint8_t channel)
 	switch(channel)
 	{
 		case 0x01:
-		_yawChannel = &_channel1;
-
+			_yawChannel = &_channel1;
+			break;
 		case 0x02:
-		_yawChannel = &_channel2;
-
+			_yawChannel = &_channel2;
+			break;
 		case 0x03:
-		_yawChannel = &_channel3;
-
+			_yawChannel = &_channel3;
+			break;
 		case 0x04:
-		_yawChannel = &_channel4;
-
+			_yawChannel = &_channel4;
+			break;
 		default:
-		ret = -1;
+			ret = -1;
+			break;
 	}
 
 	return ret;
 }
 
 /*******************************************************************************
- * Method for initializing the receiver.
+ * @brief Method for initializing the receiver.
+ * @return
  ******************************************************************************/
 float RX::getYawChannel(void)
 {
@@ -316,7 +321,8 @@ float RX::getYawChannel(void)
 }
 
 /*******************************************************************************
- * Method for mapping RX pulses 2 duty cycle.
+ * @brief Method for mapping RX pulses 2 duty cycle.
+ * @return
  ******************************************************************************/
 float RX::rxc2dc(const float rxCycle, const  float maxDc)
 {
@@ -330,7 +336,8 @@ float RX::rxc2dc(const float rxCycle, const  float maxDc)
 }
 
 /*******************************************************************************
- * Method for initializing the receiver.
+ * @brief Method for initializing the receiver.
+ * @return
  ******************************************************************************/
 uint8_t RX::getExtraChannel(void)
 {
@@ -393,7 +400,7 @@ void RX::interruptServiceRoutine(void)
 }
 
 /*******************************************************************************
- * Enable pinchange interrupts.
+ * @brief Enable pinchange interrupts.
  ******************************************************************************/
 void RX::enable(void)
 {
@@ -402,7 +409,7 @@ void RX::enable(void)
 }
 
 /*******************************************************************************
- * Disable pinchange interrupts.
+ * @brief Disable pinchange interrupts.
  ******************************************************************************/
 void RX::disable(void)
 {
@@ -410,7 +417,7 @@ void RX::disable(void)
 }
 
 /*******************************************************************************
- * Clear pinchange interrupts.
+ * @brief Clear pinchange interrupts.
  ******************************************************************************/
 void RX::clear(void)
 {
@@ -420,7 +427,7 @@ void RX::clear(void)
 /*******************************************************************************
  * Global forward declaration.
  ******************************************************************************/
-RX * RX::_RX[4] = {};
+RX::ptr RX::_RX[4] = {};
 
 /*******************************************************************************
  * _vector__x -> ISR().

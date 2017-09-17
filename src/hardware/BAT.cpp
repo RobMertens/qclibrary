@@ -1,7 +1,7 @@
 /******************************************************************************
  * Quadcopter-Library-v1
  * BAT.cpp
- *  
+ *
  * This file contains the functions for the battery (BAT). The battery-level
  * is measured by a simple analogue signal. This requires a simple voltage
  * divider in the hardware setup.
@@ -20,17 +20,16 @@
  * Constructor for the LED-class.
  ******************************************************************************/
 BAT::BAT(void)
-{	
+{
 	_level = 0x00;
 }
 
 /*******************************************************************************
  * Constructor for the LED-class.
  ******************************************************************************/
-uint8_t BAT::getLevel()
+uint8_t BAT::getLevel(void)
 {
 	//TODO::measurement.
-		
+
 	return _level;
 }
-

@@ -12,6 +12,8 @@
 
 #include "hardware/PID.h"
 
+using namespace pid_settings;
+
 /*******************************************************************************
  * Constructor for the PID-controller.
  ******************************************************************************/
@@ -22,8 +24,7 @@ PID::PID(void)
 }
 
 /*******************************************************************************
- * Constructor for the PID-controller.
- *
+ * @brief Constructor for the PID-controller.
  * @param kp The proportional gain.
  * @param ki The integral gain.
  * @param kd The derivative gain.
@@ -31,7 +32,12 @@ PID::PID(void)
  * @param minLimit The minimum output limit.
  * @param maxLimit The maximum output limit.
  ******************************************************************************/
-PID::PID(const float kp, const float ki, const float kd, const float maxLimit, const float minLimit, const int8_t direction)
+PID::PID(const float kp,
+				 const float ki,
+				 const float kd,
+				 const float maxLimit,
+				 const float minLimit,
+				 const direction direction)
 {
 	_kp = kp;
 	_ki = ki;
@@ -47,12 +53,12 @@ PID::PID(const float kp, const float ki, const float kd, const float maxLimit, c
 }
 
 /*******************************************************************************
- * Method for setting the minimum and maximum output limit.
- *
- * @param: minLimit The minimum output limit.
- * @param: maxLimit The maximum output limit.
+ * @brief Method for setting the minimum and maximum output limit.
+ * @param minLimit The minimum output limit.
+ * @param maxLimit The maximum output limit.
  ******************************************************************************/
-void PID::setOutputLimits(const float maxLimit, const float minLimit)
+void PID::setOutputLimits(const float maxLimit,
+													const float minLimit)
 {
 	_maxLimit = maxLimit;
 	_minLimit = minLimit;
@@ -65,7 +71,9 @@ void PID::setOutputLimits(const float maxLimit, const float minLimit)
  * @param ki The integral gain.
  * @param kd The derivative gain.
  ******************************************************************************/
-void PID::setGainValues(const float kp, const float ki, const float kd)
+void PID::setGainValues(const float kp,
+												const float ki,
+												const float kd)
 {
 	_kp = kp;
 	_ki = ki;
@@ -73,17 +81,16 @@ void PID::setGainValues(const float kp, const float ki, const float kd)
 }
 
 /*******************************************************************************
- * Method for changing the direction of the controller (FORWARD/REVERSE).
- *
+ * @brief Method for changing the direction of the controller.
  * @param direction The direction of the controller (FORWARD/REVERSE).
  ******************************************************************************/
-void PID::setDirection(const int8_t direction)
+void PID::setDirection(const direction)
 {
 	_direction = direction;
 }
 
 /*******************************************************************************
- * Method for resetting the PID-controller.
+ * @brief Method for resetting the PID-controller.
  ******************************************************************************/
 void PID::reset(void)
 {
@@ -92,12 +99,12 @@ void PID::reset(void)
 }
 
 /*******************************************************************************
- * Method for calculating the output of the controller.
- *
+ * @brief Method for calculating the output of the controller.
  * @param input The current input value.
  * @param desired The desired input value.
  ******************************************************************************/
-float PID::calculate(const float input, const float desired)
+float PID::calculate(const float input,
+										 const float desired)
 {
 	_input = input;
 	_desired = desired;
@@ -115,8 +122,7 @@ float PID::calculate(const float input, const float desired)
 }
 
 /*******************************************************************************
- * Method for getting the minimum output limit.
- *
+ * @brief Method for getting the minimum output limit.
  * @return _minLimit The minimum output limit.
  ******************************************************************************/
 float PID::getMinOutputLimit(void)
@@ -125,8 +131,7 @@ float PID::getMinOutputLimit(void)
 }
 
 /*******************************************************************************
- * Method for getting the maximum output limit.
- *
+ * @brief Method for getting the maximum output limit.
  * @return _maxLimit The maimum output limit.
  ******************************************************************************/
 float PID::getMaxOutputLimit(void)
@@ -135,8 +140,7 @@ float PID::getMaxOutputLimit(void)
 }
 
 /*******************************************************************************
- * Method for getting the proportional gain value.
- *
+ * @brief Method for getting the proportional gain value.
  * @return _kp The proportional gain value.
  ******************************************************************************/
 float PID::getProportionalGain(void)
@@ -145,8 +149,7 @@ float PID::getProportionalGain(void)
 }
 
 /*******************************************************************************
- * Method for getting the integral gain value.
- *
+ * @brief Method for getting the integral gain value.
  * @return _ki The integral gain value.
  ******************************************************************************/
 float PID::getIntegralGain(void)
@@ -155,8 +158,7 @@ float PID::getIntegralGain(void)
 }
 
 /*******************************************************************************
- * Method for getting the derivative gain value.
- *
+ * @brief Method for getting the derivative gain value.
  * @return _kd The derivative gain value.
  ******************************************************************************/
 float PID::getDifferentialGain(void)
@@ -165,11 +167,10 @@ float PID::getDifferentialGain(void)
 }
 
 /*******************************************************************************
- * Method for getting the direction of the controller.
- *
+ * @brief Method for getting the direction of the controller.
  * @return _direction The direction of the controller.
  ******************************************************************************/
-int8_t PID::getDirection(void)
+direction PID::getDirection(void)
 {
 	return _direction;
 }
