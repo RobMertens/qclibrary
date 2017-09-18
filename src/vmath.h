@@ -43,6 +43,7 @@ namespace vmath
 	//Functions for vector math **************************************************
 	void sum(const vector::cptr&, const vector::cptr&, vector::cptr&);
 	void subtract(const vector::cptr&, const vector::cptr&, vector::cptr&);
+	void multiply(const vector::cptr&, const float, vector::cptr&);
 	void cross(const vector::cptr&, const vector::cptr&, vector::cptr&);
 	float dot(const vector::cptr&, const vector::cptr&);
 

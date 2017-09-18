@@ -15,12 +15,12 @@ extern "C" void PCINT3_vect(void) __attribute__ ((signal));
 namespace rx_settings
 {
 
-enum class mode : uint8_t
-{
-	NONE = 0,
-	M1 = 1,
-	M2 = 2
-};
+	enum class mode : uint8_t
+	{
+		NONE = 0,
+		M1 = 1,
+		M2 = 2
+	};
 
 }; //End namespace rx_settings.
 
@@ -47,11 +47,17 @@ class RX : public interrupt::handler
 		int8_t assignPitchChannel(uint8_t);
 		int8_t assignRollChannel(uint8_t);
 		int8_t assignYawChannel(uint8_t);
-		float getThrottleChannel(void);
-		float getPitchChannel(void);
-		float getRollChannel(void);
-		float getYawChannel(void);
+		int8_t assignExtraChannel(void);
+		uint8_t getThrottleChannel(void);
+		uint8_t getPitchChannel(void);
+		uint8_t getRollChannel(void);
+		uint8_t getYawChannel(void);
 		uint8_t getExtraChannel(void);
+		float getThrottleInput(void);
+		float getPitchInput(void);
+		float getRollInput(void);
+		float getYawInput(void);
+		float getExtraInput(void);
 
 	private:
 		//Register *****************************************************************
@@ -62,30 +68,44 @@ class RX : public interrupt::handler
 		uint8_t _ch2;
 		uint8_t _ch3;
 		uint8_t _ch4;
+		uint8_t _ch5;
+		uint8_t _lastChannel;
+
 		timer8 _t;
-		uint8_t _periodMicroseconds;
-		float _maxRxCycle;								// Maximum timerticks range.
-	  float _minRxCycle;								// Minimum timerticks range.
 		rx_settings::mode _mode;
-		int8_t _offsetCh1;
-		int8_t _offsetCh2;
-		int8_t _offsetCh3;
-		int8_t _offsetCh4;
+
+		//Channel mapping **********************************************************
+		uint32_t * _channelT;
+		uint32_t * _channelR;
+		uint32_t * _channelP;
+		uint32_t * _channelY;
+		uint32_t * _channelE;
+		uint8_t _chT;											// Link to number.
+		uint8_t _chR;
+		uint8_t _chP;
+		uint8_t _chY;
+		uint8_t _chE;
+
+		//Channel variables ********************************************************
 		uint32_t _channel1;								// Double word for storing the actual timer value.
 		uint32_t _channel2;
 		uint32_t _channel3;
 		uint32_t _channel4;
-		uint32_t * _throttleChannel;
-		uint32_t * _rollChannel;
-		uint32_t * _pitchChannel;
-		uint32_t * _yawChannel;
-		uint8_t _lastChannel;
+		uint32_t _channel5;
+		int8_t _offset1;
+		int8_t _offset2;
+		int8_t _offset3;
+		int8_t _offset4;
+		int8_t _offset5;
+
+		//Static values ************************************************************
+		uint8_t _periodMicroseconds;
+		float _maxRxCycle;								// Maximum timerticks range.
+		float _minRxCycle;								// Minimum timerticks range.
 		//static const float _DEADBAND = 2.0f;
 		//static const float _MAXROLL = 100.0f;
 
 		//Setters ******************************************************************
-		void setMode2M1(void);
-		void setMode2M2(void);
 
 		//Getters ******************************************************************
 		float rxc2dc(const float, const float);

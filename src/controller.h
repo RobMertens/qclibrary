@@ -34,10 +34,10 @@ namespace c_settings
 		CROSS	= 2
 	};
 
-	/*****************************************************************************
+	/*******************************************************************
 	 * @brief Drone flying safety state.
  	 * 				TODO::more error states -> specific errors.
-	 ****************************************************************************/
+	 ******************************************************************/
 	enum class safety : int8_t
 	{
 		E1	= -1,						// Error state.
@@ -47,63 +47,106 @@ namespace c_settings
 		T2	= 3,						// Transition state ON -> OFF.
 	};
 
-	/*****************************************************************************
+	/*******************************************************************
+	 * @brief
+ 	 * @param
+	 ******************************************************************/
+	struct inputs
+	{
+		inputs(void) : reset(void) {}
+		}
+		void reset(void) const
+		{
+			throttle = 0.0f;
+			roll = 0.0f;
+			pitch = 0.0f;
+			yaw = 0.0f;
+			//extra = 0.0f;
+		}
+		float throttle;
+		float roll;
+		float pitch;
+		float yaw;
+		//float extra;
+	};
+
+	/*******************************************************************
+	 * @brief
+	 * @param
+	 ******************************************************************/
+	struct outputs
+	{
+		outputs(void) : reset(void) {}
+		void reset(void) const
+		{
+			esc1 = 0.0f;
+			esc2 = 0.0f;
+			esc3 = 0.0f;
+			esc4 = 0.0f;
+		}
+		float esc1;
+		float esc2;
+		float esc3;
+		float esc4;
+	};
+
+	/*******************************************************************
 	 * @brief Drone state 40-entry vector. A lot of vectors are unused since
 	 *				this requires more sensors.
  	 * 				TODO::does this belong in "c_settings"?
-   * 			 [[   			 (1);					 (2); 				 (3)]
-	 * 				[=============;=============;=============]
-	 *				[  theta_local;	 omega_local;	 alpha_local]
-	 * 				[   			 (3);					 (4); 				 (5)]
-	 * 				[=============;=============;=============]
-	 *				[  theta_world;	 omega_world;	 alpha_world]
-	 * 				[   			 (6);					 (7); 				 (8)]
-	 * 				[=============;=============;=============]
-	 *				[  	 pos_local;	 	 vel_local;	 	 acc_local]
-	 * 				[   			 (9);					(10); 				(11)]
-	 * 				[=============;=============;=============]
-	 *				[  	 pos_world;	 	 vel_world;	 	 acc_world]
-	 * 				[   			(12);]
-	 * 				[=============;]
-	 *				[  	  attitude;]];
-	 ****************************************************************************/
+   * 			  [[   			 	(1);					(2); 				 	(3)]
+	 * 				 [=============;=============;=============]
+	 *				 [  theta_local;	omega_local;	alpha_local]
+	 * 				 [   			 	(3);					(4); 				 	(5)]
+	 * 				 [=============;=============;=============]
+	 *				 [  theta_world;	omega_world;	alpha_world]
+	 * 				 [   			 	(6);					(7); 				 	(8)]
+	 * 				 [=============;=============;=============]
+	 *				 [  	pos_local;	 	vel_local;	  acc_local]
+	 * 				 [   			 	(9);				 (10); 				 (11)]
+	 * 				 [=============;=============;=============]
+	 *				 [  	pos_world;	 	vel_world;	 	acc_world]
+	 * 				 [   			 (12)]
+	 * 				 [=============]
+	 *				 [  	 attitude]];
+	 ******************************************************************/
 	struct state
 	{
 		state(void)
 		{
 			//Rotations.
-			_localTheta = &(new vector());
-			_localOmega = &(new vector());
-			_localAlpha = &(new vector());
-			_worldTheta = &(new vector());
-			_worldOmega = &(new vector());
-			_worldAlpha = &(new vector());
+			localTheta = &(new vector());
+			localOmega = &(new vector());
+			localAlpha = &(new vector());
+			worldTheta = &(new vector());
+			worldOmega = &(new vector());
+			worldAlpha = &(new vector());
 			//Translations.
-			_localPos = &(new vector());
-			_localVel = &(new vector());
-			_localAcc = &(new vector());
-			_worldPos = &(new vector());
-			_worldVel = &(new vector());
-			_worldAcc = &(new vector());
+			localPos = &(new vector());
+			localVel = &(new vector());
+			localAcc = &(new vector());
+			worldPos = &(new vector());
+			worldVel = &(new vector());
+			worldAcc = &(new vector());
 			//Transformation matrix.
-			_world_T_local = &(new quaternion());
+			world_R_local = &(new quaternion());
 		}
 		//Rotations.
-		vector::ptr _localTheta;					//UNUSED.
-		vector::ptr _localOmega;
-		vector::ptr _localAlpha;					//UNUSED.
-		vector::ptr _worldTheta;					//UNUSED -> Same as quaternion.
-		vector::ptr _worldOmega;					//UNUSED.
-		vector::ptr _worldAlpha;					//UNUSED.
+		vector::ptr localTheta;					//UNUSED.
+		vector::ptr localOmega;
+		vector::ptr localAlpha;					//UNUSED.
+		vector::ptr worldTheta;					//UNUSED -> Same as quaternion.
+		vector::ptr worldOmega;					//UNUSED.
+		vector::ptr worldAlpha;					//UNUSED.
 		//Translations.
-		vector::ptr _localPos;						//UNUSED.
-		vector::ptr _localVel;						//UNUSED.
-		vector::ptr _localAcc;
-		vector::ptr _worldPos;						//UNUSED.
-		vector::ptr _worldVel;						//UNUSED.
-		vector::ptr _worldAcc;
+		vector::ptr localPos;						//UNUSED.
+		vector::ptr localVel;						//UNUSED.
+		vector::ptr localAcc;
+		vector::ptr worldPos;						//UNUSED.
+		vector::ptr worldVel;						//UNUSED.
+		vector::ptr worldAcc;
 		//Transformation matrix.
-		quaternion::ptr _world_T_local;
+		quaternion::ptr local_R_world;
 	};
 
 }; //End namespace c_settings.
@@ -174,16 +217,14 @@ class controller
 	private:
 		//Variables ****************************************************************
 		float _looptime;
-		float _esc1Dc;
-		float _esc2Dc;
-		float _esc3Dc;
-		float _esc4Dc;
 		layout _layout;
+		inputs _inputs;
 		safety _safety;
 		timer16 _watchdog;		//Watchdog timer for checking calculations time.
 
 		//Quadcopter state vector **************************************************
-		state _state;
+		state _actual;
+		state _desired;
 
 		//
 		vector getFeedbackDc(void);
@@ -192,9 +233,7 @@ class controller
 		bool getMovement(const vector::cptr&, const float);
 
 		//Deprecated ***************************************************************
-		const float _maxRoll  = 0.78539816339;
-		const float _maxPitch = 0.78539816339;
-		const float _maxYaw   = 6.28318530718;
+		const static vector::cptr MAX_ANGLE;
 		const quaternion _qI = quaternion(); //Unit quaternion.
 		const vector _maxRPS = vector(200.0, 200.0, 200.0);
 		float _dbDc;

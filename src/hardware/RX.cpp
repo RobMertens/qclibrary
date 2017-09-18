@@ -26,7 +26,8 @@ RX::RX(const volatile uint8_t * const& pcmskx,
 			 const uint16_t maxMicrosecond,
 			 const uint16_t minMicrosecond)
 {
-	_pcmskx = pcmskx;							// Pass trough the Pin Change Mask Register to local variable.
+	// Pass trough the Pin Change Mask Register to local variable.
+	_pcmskx = pcmskx;
 	if(_pcmskx==PCMSK0)
 	{
 		_pcie=0x01;
@@ -46,9 +47,11 @@ RX::RX(const volatile uint8_t * const& pcmskx,
 	else
 	{;;}
 
-	*_pcmskx |= pcint;							// Which Pin Change Interrupt Pins are used.
+	// Which Pin Change Interrupt Pins are used.
+	*_pcmskx |= pcint;
 
-	for (uint8_t mask=0x01; mask<=0x80; mask<<=1)				// Loop for determining and splitting the Pin Change Interrupt Pins in different bytes.
+	// Loop for determining and splitting the Pin Change Interrupt Pins in different bytes.
+	for (uint8_t mask=0x01; mask<=0x80; mask<<=1)
     	{
     		int n = 0;
     		if(pcint & mask)
@@ -93,43 +96,34 @@ int8_t RX::setMode(const rx_settings::mode mode)
 
 	switch(mode)
 	{
-		case rx_settings::mode::M1:
-			setMode2M1();
-
-		case rx_settings::mode::M2:
-			setMode2M2();
-
-		case rx_settings::mode::NONE:
-		default:
+		case rx_settings::mode::M1 :
+			_chT = 0x01;
+			_chR = 0x04;
+			_chP = 0x03;
+			_chY = 0x02;
+			break;
+		case rx_settings::mode::M2 :
+			_chT = 0x03;
+			_chR = 0x02;
+			_chP = 0x01;
+			_chY = 0x04;
+			break;
+		case rx_settings::mode::NONE :
+		default :
 			ret = -1;
 			return ret;
 	}
 
-	_mode = mode;
+	//Assign all channels.
+	//TODO::extra channel.
+	ret = assignThrottleChannel(_chT)
+				+ assignRollChannel(_chR)
+				+ assignPitchChannel(_chP)
+				+ assignYawChannel(_chY);
+
+	if(ret==0)_mode = mode;
 
 	return ret;
-}
-
-/*******************************************************************************
- * Method for initializing the receiver.
- ******************************************************************************/
-void RX::setMode2M1(void)
-{
-	assignThrottleChannel(0x01);
-	assignRollChannel(0x04);
-	assignPitchChannel(0x03);
-	assignYawChannel(0x02);
-}
-
-/*******************************************************************************
- * Method for initializing the receiver.
- ******************************************************************************/
-void RX::setMode2M2(void)
-{
-	assignThrottleChannel(0x03);
-	assignRollChannel(0x02);
-	assignPitchChannel(0x01);
-	assignYawChannel(0x04);
 }
 
 /*******************************************************************************
@@ -144,16 +138,16 @@ int8_t RX::assignThrottleChannel(const uint8_t channel)
 	switch(channel)
 	{
 		case 0x01:
-			_throttleChannel = &_channel1;
+			_channelT = &_channel1;
 			break;
 		case 0x02:
-			_throttleChannel = &_channel2;
+			_channelT = &_channel2;
 			break;
 		case 0x03:
-			_throttleChannel = &_channel3;
+			_channelT = &_channel3;
 			break;
 		case 0x04:
-			_throttleChannel = &_channel4;
+			_channelT = &_channel4;
 			break;
 		default:
 			ret = -1;
@@ -165,14 +159,23 @@ int8_t RX::assignThrottleChannel(const uint8_t channel)
 
 /*******************************************************************************
  * @brief Method for initializing the receiver.
+ * @return The the throlle channel mask.
+ ******************************************************************************/
+uint8_t RX::getThrottleChannel(void)
+{
+	return _chT;
+}
+
+/*******************************************************************************
+ * @brief Method for initializing the receiver.
  * @return dc The actual throttle value in dutycycle.
  ******************************************************************************/
-float RX::getThrottleChannel(void)
+float RX::getThrottleInput(void)
 {
 	float rx = 0.0f;
 	float dc = 0.0f;
 
-	rx = *_throttleChannel/_periodMicroseconds;
+	rx = *_channelT/_periodMicroseconds;
 	dc = rxc2dc(rx, 0.8f);							//Preserve some top-margin.
 
 	return dc;
@@ -190,16 +193,16 @@ int8_t RX::assignPitchChannel(const uint8_t channel)
 	switch(channel)
 	{
 		case 0x01:
-			_pitchChannel = &_channel1;
+			_channelP = &_channel1;
 			break;
 		case 0x02:
-			_pitchChannel = &_channel2;
+			_channelP = &_channel2;
 			break;
 		case 0x03:
-			_pitchChannel = &_channel3;
+			_channelP = &_channel3;
 			break;
 		case 0x04:
-			_pitchChannel = &_channel4;
+			_channelP = &_channel4;
 			break;
 		default:
 			ret = -1;
@@ -213,16 +216,24 @@ int8_t RX::assignPitchChannel(const uint8_t channel)
  * @brief Method for initializing the receiver.
  * @return
  ******************************************************************************/
-float RX::getPitchChannel(void)
+uint8_t RX::getPitchChannel(void)
+{
+	return _chP;
+}
+
+/*******************************************************************************
+ * @brief Method for initializing the receiver.
+ * @return
+ ******************************************************************************/
+float RX::getPitchInput(void)
 {
 	float rx = 0.0f;
 	float dc = 0.0f;
 
-	rx = *_pitchChannel/_periodMicroseconds;
+	rx = *_channelP/_periodMicroseconds;
 	dc = rxc2dc(rx, 1.0f);
 
 	return dc;
-
 }
 
 /*******************************************************************************
@@ -237,16 +248,16 @@ int8_t RX::assignRollChannel(const uint8_t channel)
 	switch(channel)
 	{
 		case 0x01:
-			_rollChannel = &_channel1;
+			_channelR = &_channel1;
 			break;
 		case 0x02:
-			_rollChannel = &_channel2;
+			_channelR = &_channel2;
 			break;
 		case 0x03:
-			_rollChannel = &_channel3;
+			_channelR = &_channel3;
 			break;
 		case 0x04:
-			_rollChannel = &_channel4;
+			_channelR = &_channel4;
 			break;
 		default:
 			ret = -1;
@@ -261,16 +272,25 @@ int8_t RX::assignRollChannel(const uint8_t channel)
  *				TODO::introduce some deadband.
  * @return
  ******************************************************************************/
-float RX::getRollChannel(void)
+uint8_t RX::getRollChannel(void)
+{
+	return _chR;
+}
+
+/*******************************************************************************
+ * @brief Method for initializing the receiver.
+ *				TODO::introduce some deadband.
+ * @return
+ ******************************************************************************/
+float RX::getRollInput(void)
 {
 	float rx = 0.0f;
 	float dc = 0.0f;
 
-	rx = *_rollChannel/_periodMicroseconds;
+	rx = *_channelR/_periodMicroseconds;
 	dc = rxc2dc(rx, 1.0f);
 
 	return dc;
-
 }
 
 /*******************************************************************************
@@ -285,16 +305,16 @@ int8_t RX::assignYawChannel(const uint8_t channel)
 	switch(channel)
 	{
 		case 0x01:
-			_yawChannel = &_channel1;
+			_channelY = &_channel1;
 			break;
 		case 0x02:
-			_yawChannel = &_channel2;
+			_channelY = &_channel2;
 			break;
 		case 0x03:
-			_yawChannel = &_channel3;
+			_channelY = &_channel3;
 			break;
 		case 0x04:
-			_yawChannel = &_channel4;
+			_channelY = &_channel4;
 			break;
 		default:
 			ret = -1;
@@ -308,16 +328,52 @@ int8_t RX::assignYawChannel(const uint8_t channel)
  * @brief Method for initializing the receiver.
  * @return
  ******************************************************************************/
-float RX::getYawChannel(void)
+uint8_t RX::getYawChannel(void)
+{
+	return _chY;
+}
+
+/*******************************************************************************
+ * @brief Method for initializing the receiver.
+ * @return
+ ******************************************************************************/
+float RX::getYawInput(void)
 {
 	float rx = 0.0f;
 	float dc = 0.0f;
 
-	rx = *_yawChannel/_periodMicroseconds;
+	rx = *_channelY/_periodMicroseconds;
 	dc = rxc2dc(rx, 1.0f);
 
 	return dc;
+}
 
+/*******************************************************************************
+ * @brief Method for assigning the throttle channel.
+ * @param
+ * @return
+ ******************************************************************************/
+int8_t RX::assignExtraChannel(void)
+{
+	_channelE = &_channel5;
+}
+
+/*******************************************************************************
+ * @brief Method for initializing the receiver.
+ * @return
+ ******************************************************************************/
+uint8_t RX::getExtraChannel(void)
+{
+	return 0x05;
+}
+
+/*******************************************************************************
+ * @brief Method for initializing the receiver.
+ * @return
+ ******************************************************************************/
+float RX::getExtraInput(void)
+{
+	//TODO::
 }
 
 /*******************************************************************************
@@ -336,17 +392,6 @@ float RX::rxc2dc(const float rxCycle, const  float maxDc)
 }
 
 /*******************************************************************************
- * @brief Method for initializing the receiver.
- * @return
- ******************************************************************************/
-uint8_t RX::getExtraChannel(void)
-{
-	//TODO::
-
-	return 0x00;
-}
-
-/*******************************************************************************
  * ISR for the receiver class.
  ******************************************************************************/
 void RX::interruptServiceRoutine(void)
@@ -359,7 +404,7 @@ void RX::interruptServiceRoutine(void)
 	}
 	else if(_lastChannel & _ch1 and !(*_pin & _ch1))
 	{
-		_channel1 -= _t.getNonResetCount();
+		_channel1 = _t.getNonResetCount() - (_channel1 + _offset1);
 		_lastChannel &= (_ch1 ^ 0xFF);
 	}
 
@@ -371,7 +416,7 @@ void RX::interruptServiceRoutine(void)
 	}
 	else if(_lastChannel & _ch2 and !(*_pin & _ch2))
 	{
-		_channel2 -= _t.getNonResetCount();
+		_channel2 = _t.getNonResetCount() - (_channel2 + _offset2);
 		_lastChannel &= (_ch2 ^ 0xFF);
 	}
 
@@ -383,7 +428,7 @@ void RX::interruptServiceRoutine(void)
 	}
 	else if(_lastChannel & _ch3 and !(*_pin & _ch3))
 	{
-		_channel3 -= _t.getNonResetCount();
+		_channel3 = _t.getNonResetCount() - (_channel3 + _offset3);
 		_lastChannel &= (_ch3 ^ 0xFF);
 	}
 
@@ -394,9 +439,13 @@ void RX::interruptServiceRoutine(void)
 		_lastChannel |= _ch4;
 	}
 	else if(_lastChannel & _ch4 and !(*_pin & _ch4))
-	{	_channel4 -= _t.getNonResetCount();
+	{
+		_channel4 = _t.getNonResetCount() - (_channel4 + _offset4);
 		_lastChannel &= (_ch4 ^ 0xFF);
 	}
+
+	//Channel 5.
+	//TODO::
 }
 
 /*******************************************************************************
