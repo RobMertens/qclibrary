@@ -12,7 +12,8 @@ class LED
 		typedef LED * const cptr; //std::shared_ptr<LED const> cptr;
 
 		//Constructors *************************************************************
-		LED(const volatile uint8_t * const&, const uint8_t, const volatile uint8_t * const&, const volatile uint8_t * const&);
+		LED(const volatile uint8_t * const&, const uint8_t,
+			const volatile uint8_t * const&, const volatile uint8_t * const&);
 
 		//Setters ******************************************************************
 		void set(void);

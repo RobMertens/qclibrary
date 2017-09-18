@@ -11,8 +11,19 @@
 
 #include "controller.h"
 
-using namespace c_settings;
 using namespace vmath;
+
+/*******************************************************************************
+ * @brief Static vars.
+ ******************************************************************************/
+const float controller::_DEADBAND = 0.04f;
+const float controller::_DEG2RAD = 3.1415f/180.0f;
+const float controller::_RAD2DEG = 180.0f/3.1415f;
+const vector::cptr controller::_UNITX(new vector(1.0f, 0.0f, 0.0f));
+const vector::cptr controller::_UNITY(new vector(0.0f, 1.0f, 0.0f));
+const vector::cptr controller::_UNITZ(new vector(0.0f, 0.0f, 1.0f));
+const vector::cptr controller::_MAXANGLE(new vector(0.785f, 0.785f, 6.283f));
+const quaternion::cptr controller::_REAL(new quaternion());
 
 /*******************************************************************************
  * @brief Constructor for the controller-class.
@@ -21,20 +32,13 @@ using namespace vmath;
  * @param deadband
  ******************************************************************************/
 controller::controller(const c_settings::layout& layout,
-											 const t_settings::alias& alias,
-											 const float& deadband)
-										 : MAX_ANGLE(new vector(0.785f, 0.785f, 6.283f))
+											 const t_settings::alias& alias)
 {
 	//Layout.
 	_layout = layout;
 
 	//Deadband.
 	_watchdog = timer16(alias);						//TODO::both 8- and 16-bitness. -> inheritance timer-class.
-
-	//Deadband.
-	_dbDc = deadband;
-	_maxDbDc = 0.5 + 0.5*deadband;
-	_minDbDc = 0.5 - 0.5*deadband;
 }
 
 /*******************************************************************************
@@ -139,19 +143,19 @@ void controller::update(void)
 
 	//(3) Update measurements.
 	quaternion::ptr world_R_local(new quaternion);
-	updateLocalData(_imu, _safety, _actual.localOmega, _actual.localAcc);
-	updateActualAttitude(_actual.localOmega, _actual.localAcc, _looptime,
+	updateLocalData(_imu, _safety, _actual.localOmega, _actual.localAccel);
+	updateActualAttitude(_actual.localOmega, _actual.localAccel, _looptime,
 		_actual.local_R_world, _actual.local_R_world);
 	conjugate(_actual.local_R_world, world_R_local);
-	updateWorldData(_actual.localAccel, world_R_local, _world.worldAcc);
+	updateWorldData(_actual.localAccel, world_R_local, _actual.worldAccel);
 
 	//(4) PID feedback.
-	if(_safety==safety::ON)
+	if(_safety==c_settings::safety::ON)
 	{
-		updateOutputs(_pidRoll, _pidPitch, _pidYaw, _inputs, _actual, _desired,
-			_layout, _outputs);
+		updateOutputs(_pidRoll, _pidPitch, _pidYaw, _inputs, _actual.local_R_world,
+			_desired.local_R_world, _layout, _outputs);
 	}
-	if(_safety==safety::OFF)
+	if(_safety==c_settings::safety::OFF)
 	{
 		resetOutputs(_pidRoll, _pidPitch, _pidYaw, _outputs);
 	}
@@ -171,8 +175,8 @@ void controller::update(void)
  * @param rec The receiver.
  * @param[out] inputs The receiver input values.
  ******************************************************************************/
- void constroller::updateReceiverData(const rx::cptr& rec,
-	 																		inputs& inputs)
+ void controller::updateReceiverData(const RX::cptr& rec,
+	 																	 c_settings::inputs& inputs)
  {
 	 inputs.throttle = rec->getThrottleInput();
 	 inputs.roll 		 = rec->getRollInput();
@@ -186,17 +190,14 @@ void controller::update(void)
  * @param
  * @param[out]
  ******************************************************************************/
-void controller::updateDesiredAttitude(const inputs& inputs,
+void controller::updateDesiredAttitude(const c_settings::inputs& inputs,
 																			 quaternion::cptr& desired)
 {
 	//Create temporary quaternions.
 	//TODO::to radians/degrees.
-	quaternion::ptr roll(new quaternion(inputs.roll,
-		vector(0.0f, 1.0f, 0.0f)));
-	quaternion::ptr pitch(new quaternion(inputs.pitch,
-		vector(1.0f, 0.0f, 0.0f)));
-	quaternion::ptr yaw(new quaternion(inputs.yaw,
-		vector(0.0f, 0.0f, 1.0f)));
+	quaternion::ptr roll(new quaternion(_UNITY, inputs.roll));
+	quaternion::ptr pitch(new quaternion(_UNITX, inputs.pitch));
+	quaternion::ptr yaw(new quaternion(_UNITZ,inputs.yaw));
 
 	//Desired quaternion.
 	cross(pitch, roll, desired);
@@ -208,31 +209,35 @@ void controller::updateDesiredAttitude(const inputs& inputs,
  * @param inputs The receiver inputs.
  * @param[out] safety
  ******************************************************************************/
-void controller::updateSafetyState(const inputs& inputs
-																	 safety& safety)
+void controller::updateSafetyState(const c_settings::inputs& inputs,
+																	 c_settings::safety& safety)
 {
 	switch(safety)
 	{
-		case safety::OFF :
+		case c_settings::safety::OFF :
 			//Make sure the throttle stick is placed in the left-bottom position.
-			if(inputs.throttle < 0.05 and inputs.yaw < 0.05)safety=safety::T1;
+			if(inputs.throttle < _DEADBAND and inputs.yaw < _DEADBAND)
+				safety=c_settings::safety::T1;
 			break;
-		case safety::T1 :
+		case c_settings::safety::T1 :
 			//Make sure the throttle stick is placed back in the centre-bottom position.
-			if(inputs.throttle < 0.05 and inputs.yaw > 0.45 and inputs.yaw < 0.55)
-				safety=safety::ON;
+			if(inputs.throttle < _DEADBAND and inputs.yaw > (0.5f-_DEADBAND) and
+					inputs.yaw < (0.5f+_DEADBAND))
+				safety=c_settings::safety::ON;
 			break;
-		case safety::ON :
+		case c_settings::safety::ON :
 			//Make sure the throttle stick is placed in the right-bottom corner.
-			if(inputs.throttle < 0.05 and inputs.yaw > 0.95)safety=safety::T2;
+			if(inputs.throttle < _DEADBAND and inputs.yaw > (1.0f-_DEADBAND))
+				safety=c_settings::safety::T2;
 			break;
-		case safety::T2 :
+		case c_settings::safety::T2 :
 			//Make sure the throttle stick is placed back in the centre-bottom position.
-			if(inputs.throttle < 0.05 and inputs.yaw > 0.45 and inputs.yaw < 0.55)
-				safety=safety::OFF;
+			if(inputs.throttle < _DEADBAND and inputs.yaw > (0.5f-_DEADBAND) and
+					inputs.yaw < (0.5f+_DEADBAND))
+				safety=c_settings::safety::OFF;
 			break;
-		case safety::E1 :
-		case default :
+		case c_settings::safety::E1 :
+		default :
 			//TODO::
 			break;
 	}
@@ -245,15 +250,17 @@ void controller::updateSafetyState(const inputs& inputs
  * @param[out] accel
  ******************************************************************************/
 void controller::updateLocalData(const MPU6050::cptr& imu,
-																 const safety& safety,
+																 const c_settings::safety& safety,
 															 	 vector::cptr& omega,
 															 	 vector::cptr& accel)
 {
 	//Complementary filter old accel.
-	vector::cptr v(*accel);
+	vector::cptr v(new vector);
+	vector::cptr w(new vector);
+	*v = *accel;
 
 	//Update gyroscope bias if not flying.
-	if(safety!=state::ON)
+	if(safety!=c_settings::safety::ON)
 	{
 		imu->setGyroscopeBias();
 	}
@@ -261,11 +268,13 @@ void controller::updateLocalData(const MPU6050::cptr& imu,
 	imu->updateAccelero(accel);
 
 	//Complementary filter new accel.
-	vector::cptr w(*accel);
+	*w = *accel;
+	v->multiply(0.9f);
+	w->multiply(0.1f);
 
 	//Complementary filter for noise.
 	//TODO::this is wrong... -> save complemetary filter accel.
-	sum(v->multiply(0.9f), w->multiply(0.1f), accel);
+	sum(v, w, accel);
 }
 
 /*******************************************************************************
@@ -286,7 +295,7 @@ void controller::updateActualAttitude(const vector::cptr& localOmega,
 {
 	//Gyroscope integration estimation.
 	quaternion::ptr theta(new quaternion);
-	quaternion::ptr omega(new quaternion(3.1415f, localOmega));
+	quaternion::ptr omega(new quaternion(localOmega, 3.1415f));
 	quaternion::ptr base(new quaternion);
 	cross(input, omega, theta);
 	theta->multiply(0.5*time);
@@ -295,20 +304,18 @@ void controller::updateActualAttitude(const vector::cptr& localOmega,
 
 	//Accelero correction.
 	float alpha;
-	vector::ptr worldAccelEstimation(new vector));
-	quaternion::ptr unit(new quaternion());
-	quaternion::ptr conjugate(new quaternion);
-	quaternion::ptr correction(new quaternion);
-	conjugate(input, conjugate);
-	rotate(conjugate, localAccel, *worldAccelEstimation);
-	quaternion::ptr correction(quaternion(
+	vector::ptr worldAccelEstimation(new vector);
+	quaternion::ptr conjugated(new quaternion);
+	conjugate(input, conjugated);
+	rotate(conjugated, localAccel, worldAccelEstimation);
+	quaternion::ptr correction(new quaternion(
 		 sqrt(0.5*(worldAccelEstimation->z() + 1.0f)),
 		-worldAccelEstimation->y()/sqrt(2.0f*(worldAccelEstimation->z() + 1.0f)),
 		 worldAccelEstimation->x()/sqrt(2.0f*(worldAccelEstimation->z() + 1.0f)),
 		 0.0f));
 	getMovement(localAccel, 1.02f, alpha);															// 2% determined by testing.
-	lerp(unit, correction, alpha, correction);
-	//slerp(unit, correction, alpha, correction);
+	lerp(_REAL, correction, alpha, correction);
+	//slerp(_REAL, correction, alpha, correction);
 	//TODO::fix slerp.
 	correction->normalize();
 
@@ -339,7 +346,7 @@ bool controller::getMovement(const vector::cptr& accel,
 {
 	bool movement = false;
 	//TODO::determine gravity vector at stand-still, like gyro bias.
-	eta = abs((accel->mag())/0.91f);
+	eta = abs((accel->magnitude())/0.91f);
 	if(eta >= p)
 	{
 		movement = true;
@@ -370,36 +377,34 @@ void controller::updateOutputs(const PID::cptr& roll,
 															 const inputs& inputs,
 															 const quaternion::cptr& actual,
 															 const quaternion::cptr& desired,
-															 const layout& layout,
-															 outputs& outputs)
+															 const c_settings::layout& layout,
+															 c_settings::outputs& outputs)
 {
 
 	//Calculate PID rotational velocity outputs [rad/s].
 	//Map to duty cycle [%].
 	//TODO::make the map adjustable.
 	vector::ptr feedback(new vector(
-		pitch->calculate(actual->x(), desired->x())*0.785f*3.1415f/180.0f,
-		roll->calculate(actual->y(), desired->y())*0.785f*3.1415f/180.0f,
-		yaw->calculate(actual->z(), desired->z())*6.283f*3.1415f/180.0f));
+		pitch->calculate(actual->x(), desired->x())*_MAXANGLE->x(),
+		roll->calculate(actual->y(), desired->y())*_MAXANGLE->y(),
+		yaw->calculate(actual->z(), desired->z())*_MAXANGLE->z()));
 
 	//Do calculations based on structure.
 	switch(layout)
 	{
-		case layout::CROSS :
-			outputs.esc1 = inputs.throttle - feedback.x() + feedback.y() - feedback.z();
-			outputs.esc2 = inputs.throttle + feedback.x() + feedback.y() + feedback.z();
-			outputs.esc3 = inputs.throttle + feedback.x() - feedback.y() - feedback.z();
-			outputs.esc4 = inputs.throttle - feedback.x() - feedback.y() + feedback.z();
+		case c_settings::layout::CROSS :
+			outputs.esc1 = inputs.throttle - feedback->x() + feedback->y() - feedback->z();
+			outputs.esc2 = inputs.throttle + feedback->x() + feedback->y() + feedback->z();
+			outputs.esc3 = inputs.throttle + feedback->x() - feedback->y() - feedback->z();
+			outputs.esc4 = inputs.throttle - feedback->x() - feedback->y() + feedback->z();
 			break;
-
-		case layout::PLUS :
-			outputs.esc1 = inputs.throttle - feedback.x() - feedback.z();
-			outputs.esc2 = inputs.throttle + feedback.y() + feedback.z();
-			outputs.esc3 = inputs.throttle + feedback.x() - feedback.z();
-			outputs.esc4 = inputs.throttle - feedback.y() + feedback.z();
+		case c_settings::layout::PLUS :
+			outputs.esc1 = inputs.throttle - feedback->x() - feedback->z();
+			outputs.esc2 = inputs.throttle + feedback->y() + feedback->z();
+			outputs.esc3 = inputs.throttle + feedback->x() - feedback->z();
+			outputs.esc4 = inputs.throttle - feedback->y() + feedback->z();
 			break;
-
-		case layout::NONE :
+		case c_settings::layout::NONE :
 		default :
 			;;
 			break;
@@ -433,7 +438,7 @@ void controller::updateOutputs(const PID::cptr& roll,
  * @param[out]
  * @param[out]
  ******************************************************************************/
-void controller::driveMotors(const outputs& outputs,
+void controller::driveMotors(const c_settings::outputs& outputs,
 														 ESC::cptr& esc1,
 													 	 ESC::cptr& esc2,
 													 	 ESC::cptr& esc3,
@@ -451,7 +456,7 @@ void controller::driveMotors(const outputs& outputs,
 void controller::resetOutputs(PID::cptr& roll,
 															PID::cptr& pitch,
 															PID::cptr& yaw,
-															outputs& outputs)
+															c_settings::outputs& outputs)
 {
 	roll->reset();
 	pitch->reset();
@@ -484,15 +489,6 @@ float controller::getLooptime(void)
 }
 
 /*******************************************************************************
- * Method for returning the quadcopters state vector.
- ******************************************************************************/
-vector controller::getState(void)
-{
-	//TODO::
-	return vector();
-}
-
-/*******************************************************************************
  * @brief
  * @return
  ******************************************************************************/
@@ -508,7 +504,7 @@ int8_t controller::monitorBattery(void)
 /*******************************************************************************
  *
  ******************************************************************************/
-int8_t controller::getSafetyState(void)
+c_settings::safety controller::getSafetyState(void)
 {
 	return _safety;
 }

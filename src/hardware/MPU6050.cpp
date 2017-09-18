@@ -40,7 +40,8 @@ MPU6050::MPU6050(const uint8_t address)
  * @param: gyroscopeScale The gyroscope scale setting (DEFAULT=0x00).
  * @param: acceleroScale The accelerometer scale setting (DEFAULT=0x00).
  ******************************************************************************/
-void MPU6050::initialize(const uint8_t gyroscopeScale, const uint8_t acceleroScale)
+void MPU6050::initialize(const uint8_t gyroscopeScale,
+												 const uint8_t acceleroScale)
 {
 	//Gyroscope bias init.
 	_b = vector();																																//Zero vector.
@@ -157,10 +158,9 @@ void MPU6050::setGyroscopeBias(void)
 	packet[2] = Wire.read()<<8|Wire.read();
 
 	//Store in global vector.
-	_b._x = (float)( packet[0])/(3754.94f);
-	_b._y = (float)( packet[1])/(3754.94f);
-	_b._z = (float)(-packet[2])/(3754.94f);
-	_b.mag();
+	_b.x((float)( packet[0])/(3754.94f));
+	_b.y((float)( packet[1])/(3754.94f));
+	_b.z((float)(-packet[2])/(3754.94f));
 }
 
 /*******************************************************************************
@@ -185,10 +185,9 @@ void MPU6050::updateGyroscope(vector::cptr& w)
 	packet[2] = Wire.read()<<8|Wire.read();
 
 	//Store in global vector.
-	w->_x = (float)( packet[0])/(3754.94f) - (_b._x);
-	w->_y = (float)( packet[1])/(3754.94f) - (_b._y);
-	w->_z = (float)(-packet[2])/(3754.94f) - (_b._z);
-	w->mag();
+	w->x((float)( packet[0])/(3754.94f) - (_b.x()));
+	w->y((float)( packet[1])/(3754.94f) - (_b.y()));
+	w->z((float)(-packet[2])/(3754.94f) - (_b.z()));
 }
 
 /*******************************************************************************
@@ -212,10 +211,9 @@ void MPU6050::updateAccelero(vector::cptr& a)
 	packet[2] = Wire.read()<<8|Wire.read();
 
 	//Store in global vector.
-	a->_x = (float)(-packet[0])/(16384.0f);
-	a->_y = (float)(-packet[1])/(16384.0f);
-	a->_z = (float)( packet[2])/(16384.0f);
-	a-> mag();
+	a->x((float)(-packet[0])/(16384.0f));
+	a->y((float)(-packet[1])/(16384.0f));
+	a->z((float)( packet[2])/(16384.0f));
 }
 
 /*******************************************************************************

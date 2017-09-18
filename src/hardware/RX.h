@@ -32,7 +32,8 @@ class RX : public interrupt::handler
 		typedef RX * const cptr;//std::shared_ptr<RX const> cptr;
 
 	  //Constructors *************************************************************
-	  RX(const volatile uint8_t * const&, const uint8_t, const t_settings::alias, const uint16_t=4000, const uint16_t =2000, const uint16_t=1000);
+	  RX(const volatile uint8_t * const&, const uint8_t, const t_settings::alias,
+			const uint16_t=4000, const uint16_t =2000, const uint16_t=1000);
 
 	  //Setters ******************************************************************
 	  void initialize(const rx_settings::mode);

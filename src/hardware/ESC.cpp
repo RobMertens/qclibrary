@@ -33,8 +33,6 @@
 
 #include "hardware/ESC.h"
 
-using namespace t_settings;
-
 /*******************************************************************************
  * @brief Constructor for the ESC-class.
  * 				By making an object with this constructor all local variables are
@@ -48,8 +46,8 @@ using namespace t_settings;
  * @param: maxMicrosecond The full throttle pulse length [µs] (DEFAULT=2000).
  * @param: minMicrosecond The zero throttle pulse length [µs] (DEFAULT=1000).
  ******************************************************************************/
-ESC::ESC(const alias alias,
-				 const channel channel,
+ESC::ESC(const t_settings::alias& alias,
+				 const t_settings::channel& channel,
 				 const uint16_t periodMicrosecond,
 				 const uint16_t maxMicrosecond,
 				 const uint16_t minMicrosecond)
@@ -71,12 +69,12 @@ ESC::ESC(const alias alias,
  * @param: channel The 16-bit timer channel B or C.
  * @return: ret A return value ? 0 for successful : -1 for unsuccessful.
  ******************************************************************************/
-int8_t ESC::assign(const channel channel)
+int8_t ESC::assign(const t_settings::channel& channel)
 {
 	int8_t ret = 0;
 
-	if(channel==channel::B)setDutyCycle = &timer16::setDutyCycleB;
-	else if(channel==channel::C)setDutyCycle = &timer16::setDutyCycleC;
+	if(channel==t_settings::channel::B)setDutyCycle = &timer16::setDutyCycleB;
+	else if(channel==t_settings::channel::C)setDutyCycle = &timer16::setDutyCycleC;
 	else{ret=-1;}
 
 	return ret;
@@ -90,9 +88,9 @@ int8_t ESC::assign(const channel channel)
 void ESC::arm(const uint16_t prescale,
 							const uint16_t top)
 {
-	_t.initialize(mode::PWM_F,
-								channel::BC_TOP,
-								inverted::NORMAL);																	// TIMER16 Init PWM-mode.
+	_t.initialize(t_settings::mode::PWM_F,
+								t_settings::channel::BC_TOP,
+								t_settings::inverted::NORMAL);																	// TIMER16 Init PWM-mode.
 	_t.setPrescaler(prescale);																										// t_tck = (1 * prescale) / 16M = 0,0625 µs.
 																																								// t_max = 6,3e^(-8) * (2^16 - 1) = 4096 µs.
 	_t.setCompareValueA(top);																											// t_ocr = (4000 µs / 0,0625 µs) - 1 = 63999 (0xF9FF) ticks.
@@ -118,8 +116,9 @@ void ESC::unarm(void)
 int8_t ESC::writeSpeed(const float dc)
 {
 	int8_t ret = 0;
-
-	ret = (_t.*setDutyCycle)(dc2Escc(dc));
+	
+	float escc = dc2Escc(dc);
+	ret = (_t.*setDutyCycle)(escc);
 
 	return ret;
 }

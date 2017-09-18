@@ -12,8 +12,6 @@
 
 #include "hardware/PID.h"
 
-using namespace pid_settings;
-
 /*******************************************************************************
  * Constructor for the PID-controller.
  ******************************************************************************/
@@ -37,7 +35,7 @@ PID::PID(const float kp,
 				 const float kd,
 				 const float maxLimit,
 				 const float minLimit,
-				 const direction direction)
+				 const pid_settings::direction direction)
 {
 	_kp = kp;
 	_ki = ki;
@@ -84,7 +82,7 @@ void PID::setGainValues(const float kp,
  * @brief Method for changing the direction of the controller.
  * @param direction The direction of the controller (FORWARD/REVERSE).
  ******************************************************************************/
-void PID::setDirection(const direction)
+void PID::setDirection(const pid_settings::direction direction)
 {
 	_direction = direction;
 }
@@ -115,7 +113,7 @@ float PID::calculate(const float input,
 	_output = _kp*error + _iterm*error + _kd*(error - _lastError);
 	if(_output > _maxLimit)_output = _maxLimit;
 	else if(_output < _minLimit)_output = _minLimit;
-	_output *= _direction;
+	_output *= (int8_t)_direction;
 	_lastError = error;
 
 	return _output;
@@ -170,7 +168,7 @@ float PID::getDifferentialGain(void)
  * @brief Method for getting the direction of the controller.
  * @return _direction The direction of the controller.
  ******************************************************************************/
-direction PID::getDirection(void)
+pid_settings::direction PID::getDirection(void)
 {
 	return _direction;
 }

@@ -18,7 +18,8 @@ class ESC
 		typedef ESC * const cptr; //std::shared_ptr<ESC const> cptr;
 
 		//Constructors *************************************************************
-		ESC(const alias, const channel, const uint16_t=4000, const uint16_t=2000, const uint16_t=1000);
+		ESC(const alias&, const channel&, const uint16_t=4000, const uint16_t=2000,
+			const uint16_t=1000);
 
 		//Setters ******************************************************************
 		void arm(const uint16_t=0x0001, const uint16_t=0xF9FF);
@@ -36,8 +37,8 @@ class ESC
 	  float _minEscCycle;																													// Minimum timerticks range.
 
   	//Getters ******************************************************************
-    int8_t assign(const channel);
-		int8_t (timer16::*setDutyCycle)(float);
+    int8_t assign(const channel&);
+		int8_t (timer16::*setDutyCycle)(float&);
 		float dc2Escc(float);
 
 };

@@ -23,7 +23,6 @@ vector::vector(void)
 	_x = 0.0f;
 	_y = 0.0f;
 	_z = 0.0f;
-	_m = 0.0f;
 }
 
 /*******************************************************************************
@@ -33,12 +32,13 @@ vector::vector(void)
  * @param y The y value as a float.
  * @param z The z value as a float.
  ******************************************************************************/
-vector::vector(const float x, const float y, const float z)
+vector::vector(const float x,
+							 const float y,
+							 const float z)
 {
 	_x = x;
 	_y = y;
 	_z = z;
-	_m = mag();
 }
 
 /*******************************************************************************
@@ -46,10 +46,9 @@ vector::vector(const float x, const float y, const float z)
  ******************************************************************************/
 void vector::normalize(void)
 {
-	_x /= m;
-	_x /= m;
-	_x /= m;
-	_m = 1.0f;
+	_x /= _m;
+	_x /= _m;
+	_x /= _m;
 }
 
 /*******************************************************************************
@@ -60,7 +59,6 @@ void vector::multiply(const float s)
 	_x *= s;
 	_y *= s;
 	_z *= s;
-	_m = mag();
 }
 
 /*******************************************************************************
@@ -68,9 +66,9 @@ void vector::multiply(const float s)
  *
  * @return m The magnitude float.
  ******************************************************************************/
-void vector::x(const float _x)
+void vector::x(const float x)
 {
-	this->_x = _x;
+	_x = x;
 }
 
 /*******************************************************************************
@@ -78,9 +76,9 @@ void vector::x(const float _x)
  *
  * @return m The magnitude float.
  ******************************************************************************/
-void vector::y(const float _y)
+void vector::y(const float y)
 {
-	this->_y = _y;
+	_y = y;
 }
 
 /*******************************************************************************
@@ -88,9 +86,9 @@ void vector::y(const float _y)
  *
  * @return m The magnitude float.
  ******************************************************************************/
-void vector::z(const float _z)
+void vector::z(const float z)
 {
-	this->_z = _z;
+	_z = z;
 }
 
 /*******************************************************************************
@@ -128,7 +126,7 @@ float vector::z(void)
  *
  * @return m The magnitude float.
  ******************************************************************************/
-float vector::mag(void)
+float vector::magnitude(void)
 {
 	return sqrt(_x*_x + _y*_y + _z*_z);
 }
@@ -139,12 +137,13 @@ float vector::mag(void)
  * @param v The operand vector.
  * @return result The result vector.
  ******************************************************************************/
-void sum(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
+void sum(const vector::cptr& v,
+				 const vector::cptr& w,
+				 vector::cptr& res)
 {
-	res->_x = v->_x + w->_x;
-	res->_y = v->_y + w->_y;
-	res->_z = v->_z + w->_z;
-	res->_m = res->mag();
+	res->x(v->x() + w->x());
+	res->y(v->y() + w->y());
+	res->z(v->z() + w->z());
 }
 
 /*******************************************************************************
@@ -153,12 +152,13 @@ void sum(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
  * @param v The operand vector.
  * @return result The result vector.
  ******************************************************************************/
-void subtract(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
+void subtract(const vector::cptr& v,
+							const vector::cptr& w,
+							vector::cptr& res)
 {
- 	res->_x = v->_x - w->_x;
- 	res->_y = v->_x - w->_y;
- 	res->_z = v->_x - w->_z;
- 	res->_m = res->mag();
+ 	res->x(v->x() - w->x());
+ 	res->y(v->y() - w->y());
+ 	res->z(v->z() - w->z());
 }
 
 /*******************************************************************************
@@ -167,12 +167,12 @@ void subtract(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
  * @param s The operand scalar.
  * @return result The result vector.
  ******************************************************************************/
-void multiply(const vector::cptr& v, const float s, vector::cptr& res)
+void multiply(const vector::cptr& v,
+							const float s, vector::cptr& res)
 {
-	res->_x = v->_x*s;
- 	res->_y = v->_y*s;
- 	res->_z = v->_z*s;
- 	res->_m = res->mag();
+	res->x(v->x()*s);
+ 	res->y(v->y()*s);
+ 	res->z(v->z()*s);
 }
 
 /*******************************************************************************
@@ -181,12 +181,13 @@ void multiply(const vector::cptr& v, const float s, vector::cptr& res)
  * @param v The operand vector.
  * @return result The result vector.
  ******************************************************************************/
-void cross(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
+void cross(const vector::cptr& v,
+					 const vector::cptr& w,
+					 vector::cptr& res)
 {
-	res->_x = v->_y*w->_z - v->_z*w->_y;
-	res->_y = v->_z*w->_x - v->_x*w->_z;
-	res->_z = v->_x*w->_y - v->_y*w->_x;
-	res->_m = res->mag();
+	res->x(v->y()*w->z() - v->z()*w->y());
+	res->y(v->z()*w->x() - v->x()*w->z());
+	res->z(v->x()*w->y() - v->y()*w->x());
 }
 
 /*******************************************************************************
@@ -195,9 +196,10 @@ void cross(const vector::cptr& v, const vector::cptr& w, vector::cptr& res)
  * @param v The operand vector.
  * @return result The result float.
  ******************************************************************************/
-float vector::dot(const vector::cptr& v, const vector::cptr& w)
+float dot(const vector::cptr& v,
+					const vector::cptr& w)
 {
-	return (v->_x*w->_x + v->_y*w->_y + v->_z*w->_z);
+	return (v->x()*w->x() + v->y()*w->y() + v->z()*w->z());
 }
 
 /*******************************************************************************
@@ -209,7 +211,6 @@ quaternion::quaternion(void)
 	_x = 0.0f;
 	_y = 0.0f;
 	_z = 0.0f;
-	_m = 1.0f;
 }
 
 /*******************************************************************************
@@ -218,13 +219,13 @@ quaternion::quaternion(void)
  * @param a The rotation angle float.
  * @param e The rotation vector.
  ******************************************************************************/
-quaternion::quaternion(const vector::cptr& e, const float a)
+quaternion::quaternion(const vector::cptr& e,
+											 const float a)
 {
 	_w = cos(0.5*a);
-	_x = (e->_x)*sin(0.5*a);
-	_y = (e->_y)*sin(0.5*a);
-	_z = (e->_z)*sin(0.5*a);
-	_m = mag();
+	_x = (e->x())*sin(0.5*a);
+	_y = (e->y())*sin(0.5*a);
+	_z = (e->z())*sin(0.5*a);
 }
 
 /*******************************************************************************
@@ -235,13 +236,15 @@ quaternion::quaternion(const vector::cptr& e, const float a)
  * @param y The y value float.
  * @param z The z value float.
  ******************************************************************************/
-quaternion::quaternion(const float w, const float x, const float y, const float z)
+quaternion::quaternion(const float w,
+											 const float x,
+											 const float y,
+											 const float z)
 {
 	_w = w;
 	_x = x;
 	_y = y;
 	_z = z;
-	_m = mag();
 }
 
 /*******************************************************************************
@@ -249,23 +252,24 @@ quaternion::quaternion(const float w, const float x, const float y, const float 
  ******************************************************************************/
 void quaternion::normalize(void)
 {
-	_w /= _m;
-	_x /= _m;
-	_y /= _m;
-	_z /= _m;
-	_m = 1.0f;
+	float m = magnitude();
+	_w /= m;
+	_x /= m;
+	_y /= m;
+	_z /= m;
 }
 
 /*******************************************************************************
  * Method for normalizing the quaternion as Euclidean norm.
  ******************************************************************************/
-void normalize(const quaternion::cptr& q, quaternion::cptr& res)
+void normalize(const quaternion::cptr& q,
+							 quaternion::cptr& res)
 {
-	res->_w = q->_w/q->_m;
-	res->_x = q->_x/q->_m;
-	res->_y = q->_y/q->_m;
-	res->_z = q->_z/q->_m;
-	res->_m = 1.0f;
+	float m = q->magnitude();
+	res->w(q->w()/m);
+	res->x(q->x()/m);
+	res->y(q->y()/m);
+	res->z(q->z()/m);
 }
 
 /*******************************************************************************
@@ -277,19 +281,18 @@ void quaternion::conjugate(void)
 	_x *= (-1.0f);
 	_y *= (-1.0f);
 	_z *= (-1.0f);
-	//_m remains unchanged.
 }
 
 /*******************************************************************************
  * Method for obtaining the conjugate quaternion.
  ******************************************************************************/
-void conjugate(const quaternion::cptr& q, quaternion::cptr& res)
+void conjugate(const quaternion::cptr& q,
+							 quaternion::cptr& res)
 {
-	res->_w = q->_w;
-	res->_x = q->_x*(-1.0f);
-	res->_y = q->_y*(-1.0f);
-	res->_z = q->_z*(-1.0f);
-	res->_m = q->_m;
+	res->w(q->w());
+	res->x(q->x()*(-1.0f));
+	res->y(q->y()*(-1.0f));
+	res->z(q->z()*(-1.0f));
 }
 
 /*******************************************************************************
@@ -297,11 +300,11 @@ void conjugate(const quaternion::cptr& q, quaternion::cptr& res)
  ******************************************************************************/
 void quaternion::inverse(void)
 {
-	_w /= _m;
-	_x /= (-1.0f*_m);
-	_y /= (-1.0f*_m);
-	_z /= (-1.0f*_m);
-	_m = 1.0f;
+	float m = magnitude();
+	_w /= m;
+	_x /= (-1.0f*m);
+	_y /= (-1.0f*m);
+	_z /= (-1.0f*m);
 }
 
 /*******************************************************************************
@@ -315,7 +318,6 @@ void quaternion::multiply(const float s)
 	_x *= s;
 	_y *= s;
 	_z *= s;
-	_m = mag();
 }
 
 /*******************************************************************************
@@ -404,7 +406,7 @@ float quaternion::z(void)
  * @return m The quaternion magnitude.
 
  ******************************************************************************/
-float quaternion::mag(void)
+float quaternion::magnitude(void)
 {
 	return sqrt(_w*_w + _x*_x + _y*_y + _z*_z);
 }
@@ -415,13 +417,14 @@ float quaternion::mag(void)
  * @param q The operand quaternion.
  * @return result The result quaternion.
  ******************************************************************************/
-void sum(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cptr& res)
+void sum(const quaternion::cptr& q,
+				 const quaternion::cptr& p,
+				 quaternion::cptr& res)
 {
-	res->_w = q->_w + p->_w;
-	res->_x = q->_x + p->_x;
-	res->_y = q->_y + p->_y;
-	res->_z = q->_z + p->_z;
-	res->_m = res->mag();
+	res->w(q->w() + p->w());
+	res->x(q->x() + p->x());
+	res->y(q->y() + p->y());
+	res->z(q->z() + p->z());
 }
 
 /*******************************************************************************
@@ -430,13 +433,14 @@ void sum(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cptr&
  * @param q The operand quaternion.
  * @return result The result quaternion.
  ******************************************************************************/
-void subtract(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cptr& res)
+void subtract(const quaternion::cptr& q,
+							const quaternion::cptr& p,
+							quaternion::cptr& res)
 {
-	res->_w = q->_w + p->_w;
-	res->_x = q->_x + p->_x;
-	res->_y = q->_y + p->_y;
-	res->_z = q->_z + p->_z;
-	res->_m = res->mag();
+	res->w(q->w() + p->w());
+	res->x(q->x() + p->x());
+	res->y(q->y() + p->y());
+	res->z(q->z() + p->z());
 }
 
 /*******************************************************************************
@@ -445,13 +449,14 @@ void subtract(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::
  * @param s The operand float.
  * @return result The result quaternion.
  ******************************************************************************/
-void multiply(const quaternion::cptr& q, const float s, quaternion::cptr& res)
+void multiply(const quaternion::cptr& q,
+							const float s,
+							quaternion::cptr& res)
 {
-	res->_w = q->_w*s;
-	res->_x = q->_x*s;
-	res->_y = q->_y*s;
-	res->_z = q->_z*s;
-	res->_m = res->mag();
+	res->w(q->w()*s);
+	res->x(q->x()*s);
+	res->y(q->y()*s);
+	res->z(q->z()*s);
 }
 
 /*******************************************************************************
@@ -460,13 +465,14 @@ void multiply(const quaternion::cptr& q, const float s, quaternion::cptr& res)
  * @param q The operand quaternion.
  * @return result The result quaternion.
  ******************************************************************************/
-void cross(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cptr& res)
+void cross(const quaternion::cptr& q,
+					 const quaternion::cptr& p,
+					 quaternion::cptr& res)
 {
-	res->_w = q->_w*p->_w - q->_x*p->_x - q->_y*p->_y - q->_z*p->_z,
-	res->_x = q->_w*p->_x + q->_x*p->_w + q->_y*p->_z - q->_z*p->_y,
-	res->_y = q->_w*p->_y - q->_x*p->_z + q->_y*p->_w + q->_z*p->_x,
-	res->_z = q->_w*p->_z + q->_x*p->_y - q->_y*p->_x + q->_z*p->_w);
-	res->_m = res->mag();
+	res->w(q->w()*p->w() - q->x()*p->x() - q->y()*p->y() - q->z()*p->z());
+	res->x(q->w()*p->x() + q->x()*p->w() + q->y()*p->z() - q->z()*p->y());
+	res->y(q->w()*p->y() - q->x()*p->z() + q->y()*p->w() + q->z()*p->x());
+	res->z(q->w()*p->z() + q->x()*p->y() - q->y()*p->x() + q->z()*p->w());
 }
 
 /*******************************************************************************
@@ -475,9 +481,10 @@ void cross(const quaternion::cptr& q, const quaternion::cptr& p, quaternion::cpt
  * @param q The operand quaternion.
  * @return result The result float.
  ******************************************************************************/
-float quaternion::dot(const quaternion::cptr& q, const quaternion::cptr& p)
+float dot(const quaternion::cptr& q,
+					const quaternion::cptr& p)
 {
-	return (q->_w*p->_w + q->_x*p->_x + q->_y*p->_y + q->_z*p->_z);
+	return (q->w()*p->w() + q->x()*p->x() + q->y()*p->y() + q->z()*p->z());
 }
 
 /*******************************************************************************
@@ -487,12 +494,13 @@ float quaternion::dot(const quaternion::cptr& q, const quaternion::cptr& p)
  * @param v The operand vector.
  * @param res The result vector.
  ******************************************************************************/
-void rotate(const quaternion::cptr& q, const vector::cptr& v, vector::cptr& res)
+void rotate(const quaternion::cptr& q,
+						const vector::cptr& v,
+						vector::cptr& res)
 {
-	res->_x = (q->_w*q->_w + q->_x*q->_x - q->_y*q->_y - q->_z*q->_z)*v->_x + 2*(q->_x*q->_y - q->_w*q->_z)*v->_y + 2*(q->_x*q->_z + q->_w*q->_y)*v->_z;
-	res->_y = 2*(q->_x*q->_y + q->_w*q->_z)*v->_x + (q->_w*q->_w - q->_x*q->_x + q->_y*q->_y - q->_z*q->_z)*v->_y + 2*(q->_y*q->_z - q->_w*q->_x)*v->_z;
-	res->_z = 2*(q->_x*q->_z - q->_w*q->_y)*v->_x + 2*(q->_y*q->_z + q->_w*q->_x)*v->_y + (q->_w*q->_w - q->_x*q->_x - q->_y*q->_y + q->_z*q->_z)*v->_z;
-	res->_m = res->mag();
+	res->x((q->w()*q->w() + q->x()*q->x() - q->y()*q->y() - q->z()*q->z())*v->x() + 2*(q->x()*q->y() - q->w()*q->z())*v->y() + 2*(q->x()*q->z() + q->w()*q->y())*v->z());
+	res->y(2*(q->x()*q->y() + q->w()*q->z())*v->x() + (q->w()*q->w() - q->x()*q->x() + q->y()*q->y() - q->z()*q->z())*v->y() + 2*(q->y()*q->z() - q->w()*q->x())*v->z());
+	res->z(2*(q->x()*q->z() - q->w()*q->y())*v->x() + 2*(q->y()*q->z() + q->w()*q->x())*v->y() + (q->w()*q->w() - q->x()*q->x() - q->y()*q->y() + q->z()*q->z())*v->z());
 }
 
 /*******************************************************************************
@@ -547,18 +555,19 @@ void slerp(const quaternion::cptr& q,
  *
  * @return result The result vector.
  ******************************************************************************/
-void q2euler(const quaternion::cptr& q, vector::cptr& res)
+void q2euler(const quaternion::cptr& q,
+						 vector::cptr& res)
 {
-	res->_x = atan2(2*(q->_w*q->_x + q->_y*q->_z), q->_w*q->_w - q->_x*q->_x - q->_y*q->_y + q->_z*q->_z);
-	res->_y = asin(2*(q->_w*q->_y - q->_x*q->_z));
-	res->_z = atan2(2*(q->_x*q->_y + q->_w*q->_z), q->_w*q->_w + q->_x*q->_x - q->_y*q->_y - q->_z*q->_z));
-	res->_m = res->mag();
+	res->x(atan2(2*(q->w()*q->x() + q->y()*q->z()), q->w()*q->w() - q->x()*q->x() - q->y()*q->y() + q->z()*q->z()));
+	res->y(asin(2*(q->w()*q->y() - q->x()*q->z())));
+	res->z(atan2(2*(q->x()*q->y() + q->w()*q->z()), q->w()*q->w() + q->x()*q->x() - q->y()*q->y() - q->z()*q->z()));
 }
 
 /*******************************************************************************
  * TODO::
  ******************************************************************************/
-void euler2q(const vector::cptr& v, quaternion::cptr& res)
+void euler2q(const vector::cptr& v,
+						 quaternion::cptr& res)
 {
 	;;
 }

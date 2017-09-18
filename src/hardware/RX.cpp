@@ -77,13 +77,13 @@ RX::RX(const volatile uint8_t * const& pcmskx,
  ******************************************************************************/
 void RX::initialize(const rx_settings::mode mode)
 {
-	_t.initialize(t_mode::NORMAL, t_interrupt::OVF);			// Set up the 8-bit timer prescaler value 64.
-	_t.setPrescaler(1); 																	// Maximum possible time for one timer run can be calculated.
-	_t.reset();																						// (timer_max) = (2^8 - 1) * (prescale / 16M) = 15,9375us
-																												// Per overflow flag the overflow word stores one timer value.
-	enable();																							// Maximum possible time with overflows can be calculated.
-																												// (ovf_max) = (2^32) * 15,9375us = 68451s = 19h00m51s
-	setMode(mode);																				// The drone will never fly 19 hours, so OK.
+	_t.initialize(t_settings::mode::NORMAL, t_settings::interrupt::OVF);					// Set up the 8-bit timer prescaler value 64.
+	_t.setPrescaler(1); 																													// Maximum possible time for one timer run can be calculated.
+	_t.reset();																																		// (timer_max) = (2^8 - 1) * (prescale / 16M) = 15,9375us
+																																								// Per overflow flag the overflow word stores one timer value.
+	enable();																																			// Maximum possible time with overflows can be calculated.
+																																								// (ovf_max) = (2^32) * 15,9375us = 68451s = 19h00m51s
+	setMode(mode);																																// The drone will never fly 19 hours, so OK.
 }
 
 /*******************************************************************************

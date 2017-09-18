@@ -25,7 +25,8 @@ class PID
 
 		//Constructors *************************************************************
 		PID(void);
-		PID(const float, const float, const float, const float, const float, const direction=direction::FORWARD);
+		PID(const float, const float, const float, const float, const float,
+			const direction=direction::FORWARD);
 
 		//Setters ******************************************************************
 		void setOutputLimits(const float, const float);
@@ -40,7 +41,7 @@ class PID
 		float getProportionalGain(void);
 		float getIntegralGain(void);
 		float getDifferentialGain(void);
-		int8_t getDirection(void);
+		direction getDirection(void);
 
 	private:
 		float _kp;                  							// (P)roportional Tuning Parameter
