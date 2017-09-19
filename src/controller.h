@@ -13,10 +13,20 @@
 #include "hardware/ESC.h"
 #include "hardware/LED.h"
 
-namespace c_settings
+namespace controller
 {
 	/*****************************************************************************
-	 * @brief TODO::this is future stuff.
+	 * @brief Layout.
+	 ****************************************************************************/
+	enum class layout : uint8_t
+	{
+		NONE	= 0,
+		PLUS	= 1,
+		CROSS	= 2
+	};
+
+	/*****************************************************************************
+	 * @brief Mode.
 	 ****************************************************************************/
 	enum class mode : uint8_t
 	{
@@ -25,13 +35,6 @@ namespace c_settings
 		VEL	= 2,	// GPS Needed.
 		POS	= 3,	// GPS Needed.
 		HVR	= 4
-	};
-
-	enum class layout : uint8_t
-	{
-		NONE	= 0,
-		PLUS	= 1,
-		CROSS	= 2
 	};
 
 	/*******************************************************************
@@ -47,10 +50,9 @@ namespace c_settings
 		T2	= 3,						// Transition state ON -> OFF.
 	};
 
-	/*******************************************************************
-	 * @brief
- 	 * @param
-	 ******************************************************************/
+	/*****************************************************************************
+	 * @brief Inputs.
+	 ****************************************************************************/
 	struct inputs
 	{
 		//Constructors *************************************************************
@@ -68,8 +70,7 @@ namespace c_settings
 	};
 
 	/*****************************************************************************
-	 * @brief
-	 * @param
+	 * @brief Outputs.
 	 ****************************************************************************/
 	struct outputs
 	{
@@ -87,30 +88,16 @@ namespace c_settings
 	};
 
 	/*****************************************************************************
-	 * @brief Drone state 40-entry vector. A lot of vectors are unused since
-	 *				this requires more sensors.
- 	 * 				TODO::does this belong in "c_settings"?
-   * 			  [[   			 	(1);					(2); 				 	(3)]
-	 * 				 [=============;=============;=============]
-	 *				 [  theta_local;	omega_local;	alpha_local]
-	 * 				 [   			 	(3);					(4); 				 	(5)]
-	 * 				 [=============;=============;=============]
-	 *				 [  theta_world;	omega_world;	alpha_world]
-	 * 				 [   			 	(6);					(7); 				 	(8)]
-	 * 				 [=============;=============;=============]
-	 *				 [  	pos_local;	 	vel_local;	accel_local]
-	 * 				 [   			 	(9);				 (10); 				 (11)]
-	 * 				 [=============;=============;=============]
-	 *				 [  	pos_world;	 	vel_world;	accel_world]
-	 * 				 [   			 (12)]
-	 * 				 [=============]
-	 *				 [  	 attitude]];
+	 * @brief State vector.
 	 ****************************************************************************/
 	struct state
 	{
 		//Constructors *************************************************************
-		state(void) : localOmega(new vector()), localAccel(new vector()),
-			worldAccel(new vector()), local_R_world(new quaternion()) {}
+		state(void)
+		: localOmega(new vector()),
+			localAccel(new vector()),
+			worldAccel(new vector()),
+			local_R_world(new quaternion()) {}
 
 		//Setters ******************************************************************
 		void reset(void)
@@ -122,108 +109,32 @@ namespace c_settings
 		}
 
 		//Variables ****************************************************************
-		//vector::ptr localTheta;																										//Rotations.
 		vector::ptr localOmega;
-		//vector::ptr localAlpha;
-		//vector::ptr worldTheta;
-		//vector::ptr worldOmega;
-		//vector::ptr worldAlpha;
-		//vector::ptr localPos;																											//Translations.
-		//vector::ptr localVel;
 		vector::ptr localAccel;
-		//vector::ptr worldPos;
-		//vector::ptr worldVel;
 		vector::ptr worldAccel;
-		quaternion::ptr local_R_world;																							//Rotation matrix.
+		quaternion::ptr local_R_world;
 	};
 
-}; //End namespace c_settings.
+	//Setters ********************************************************************
+	void updateReceiverInputs(const RX::cptr&, inputs&);
+	void updateDesiredState(const inputs&, state&);
+	void updateSafetyState(const inputs&, safety&);
+	void updateLocalData(const MPU6050::cptr&, state&);
+	void updateActualAttitude(const float, state&);
+	void updateWorldData(state&);
+	void updateOutputs(const PID::cptr&, const PID::cptr&, const PID::cptr&,
+		const inputs&, const state&, const state&, const layout&, outputs&);
+	void resetOutputs(PID::cptr& roll, PID::cptr& pitch, PID::cptr& yaw,
+		outputs& outputs);
+	void driveMotors(ESC::cptr& esc1, ESC::cptr& esc2, ESC::cptr& esc3,
+		ESC::cptr& esc4, const outputs& outputs);
+	void stopMotors(void);
+	void enableMotors(void);
+	void disableMotors(void);
 
-using namespace c_settings;
+	//Getters ********************************************************************
+	bool getMovement(const vector::cptr& accel, const float p, float& eta=0.0f);
 
-class controller
-{
-	public:
-		//Typedefs *****************************************************************
-		typedef controller * ptr;
-		typedef controller * const cptr;
+}; //End namespace constoller;
 
-		//Constructors *************************************************************
-		controller(const c_settings::layout&, const t_settings::alias&);
-
-		//Setters ******************************************************************
-		void assignImu(const MPU6050::cptr&);
-		void assignReceiver(const RX::cptr&, const rx_settings::mode);
-		void assignPids(const PID::cptr&, const PID::cptr&, const PID::cptr&);
-		void assignDrives(const ESC::cptr&, const ESC::cptr&, const ESC::cptr&,
-			const ESC::cptr&);
-		void initialize(void);
-		void update(void);
-		void stopMotors(void);
-		void enableMotors(void);
-		void disableMotors(void);
-
-		//Getters ******************************************************************
-		bool getMovement(const vector::cptr& accel, const float p, float& eta);
-		float getLooptime(void);
-		int8_t monitorBattery(void);
-		safety getSafetyState(void);
-
-	protected:
-		//Quadcopter attributes ****************************************************
-		ESC::ptr _esc1;
-		ESC::ptr _esc2;
-		ESC::ptr _esc3;
-		ESC::ptr _esc4;
-		PID::ptr _pidRoll;
-		PID::ptr _pidPitch;
-		PID::ptr _pidYaw;
-		RX::ptr _rec;
-		MPU6050::ptr _imu;
-
-	private:
-		//Variables ****************************************************************
-		float _looptime;
-		layout _layout;
-		timer16 _watchdog;		//Watchdog timer for checking calculations time.
-
-		//Quadcopter state vector **************************************************
-		inputs _inputs;
-		safety _safety;
-		state _actual;
-		state _desired;
-		outputs _outputs;
-
-		//Setters ******************************************************************
-		void updateReceiverData(const RX::cptr&, inputs&);
-		void updateDesiredAttitude(const inputs&, quaternion::cptr&);
-		void updateSafetyState(const inputs&, safety&);
-		void updateLocalData(const MPU6050::cptr&, const safety&, vector::cptr&,
-			vector::cptr&);
-		void updateActualAttitude(const vector::cptr&, const vector::cptr&,
-			const float, const quaternion::cptr&, quaternion::cptr& output);
-		void updateWorldData(const vector::cptr&, const quaternion::cptr&,
-			vector::cptr&);
-		void updateOutputs(const PID::cptr&, const PID::cptr&, const PID::cptr&,
-			const inputs&, const quaternion::cptr&, const quaternion::cptr&,
-			const layout&, outputs&);
-		void driveMotors(const outputs& outputs, ESC::cptr& esc1, ESC::cptr& esc2,
-			ESC::cptr& esc3, ESC::cptr& esc4);
-		void resetOutputs(PID::cptr& roll, PID::cptr& pitch, PID::cptr& yaw,
-			outputs& outputs);
-		void updateActualAttitude(const vector::cptr&, const vector::cptr&,
-			const quaternion::cptr&, quaternion::cptr&);
-		bool getMovement(const vector::cptr&, const float);
-
-		//Deprecated ***************************************************************
-		const static float _DEADBAND;
-		const static float _DEG2RAD;
-		const static float _RAD2DEG;
-		const static vector::cptr _UNITX;
-		const static vector::cptr _UNITY;
-		const static vector::cptr _UNITZ;
-		const static vector::cptr _MAXANGLE;
-		const static quaternion::cptr _REAL;
-
-};
 #endif
