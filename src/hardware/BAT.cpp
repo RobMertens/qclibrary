@@ -14,22 +14,26 @@
  * @version:	1.1.1
  ******************************************************************************/
 
-#include "hardware/BAT.h"
+#include "hardware/BAT.hpp"
 
-/*******************************************************************************
- * Constructor for the LED-class.
- ******************************************************************************/
+namespace qc
+{
+
+namespace component
+{
+
 BAT::BAT(void)
 {
-	_level = 0x00;
+	level_ = 0x00;
 }
 
-/*******************************************************************************
- * Constructor for the LED-class.
- ******************************************************************************/
 uint8_t BAT::getLevel(void)
 {
 	//TODO::measurement.
 
-	return _level;
+	return level_;
 }
+
+}; //End namespace component.
+
+}; //End namespace qc.

@@ -4,13 +4,17 @@
  *
  * This file contains predefined functions for the LED-class.
  *
- * TODO::support multiple LED's.
- *
  * @author Rob Mertens
  * @version 1.0.1 14/08/2016
  ******************************************************************************/
 
-#include "hardware/LED.h"
+#include "hardware/LED.hpp"
+
+namespace qc
+{
+
+namespace component
+{
 
 /*******************************************************************************
  * @brief Constructor for the LED-class.
@@ -24,13 +28,54 @@ LED::LED(const volatile uint8_t * const& ddr,
 				 const volatile uint8_t * const& pin,
 				 const volatile uint8_t * const& port)
 {
-	_ddr	= ddr;
-	*_ddr	|= ddrmsk;							// Put definitions in local variables.
-	_pin	= pin;
-	_port	= port;
+	ddr_	= ddr;
+	*ddr_	|= ddrmsk;							// Put definitions in local variables.
+	pin_	= pin;
+	port_	= port;
 
-	_HIGH	= *_ddr;
-	_LOW	= *_ddr ^ 0xFF;
+	HIGH_	= *ddr_;
+	LOW_	= *ddr_ ^ 0xFF;
+}
+
+/*******************************************************************************
+ *
+ ******************************************************************************/
+LED::LED(const LED& other)
+{
+	ddr_ = new volatile uint8_t(*other.ddr_);
+	pin_ = new volatile uint8_t(*other.pin_);
+	port_ = new volatile uint8_t(*other.port_);
+}
+
+/*******************************************************************************
+ *
+ ******************************************************************************/
+LED::~LED(void)
+{
+	delete ddr_;
+	delete pin_;
+	delete port_;
+}
+
+/*******************************************************************************
+ *
+ ******************************************************************************/
+LED& LED::operator=(const LED& other)
+{
+	if(this != &other)
+	{
+		//Volatiles.
+		uint8_t *ddr(new volatile uint8_t(*other.ddr_));
+		delete ddr_;
+		ddr_ = ddr;
+		uint8_t *pin(new volatile uint8_t(*other.pin_));
+		delete pin_;
+		pin_ = pin;
+		uint8_t *port(new volatile uint8_t(*other.port_));
+		delete port_;
+		port_ = port;
+	}
+	return (*this);
 }
 
 /*******************************************************************************
@@ -38,7 +83,7 @@ LED::LED(const volatile uint8_t * const& ddr,
  ******************************************************************************/
 void LED::set(void)
 {
-	*_port |= _HIGH;
+	*port_ |= HIGH_;
 }
 
 /*******************************************************************************
@@ -46,7 +91,7 @@ void LED::set(void)
  ******************************************************************************/
 void LED::reset(void)
 {
-	*_port &= _LOW;
+	*port_ &= LOW_;
 }
 
 /*******************************************************************************
@@ -54,7 +99,7 @@ void LED::reset(void)
  ******************************************************************************/
 void LED::toggle(void)
 {
-	*_port ^= 0xFF;
+	*port_ ^= 0xFF;
 }
 
 /*******************************************************************************
@@ -65,7 +110,11 @@ bool LED::getState(void)
 {
 	bool state = false;
 
-	if(*_pin & 0x80)state = true;
+	if(*pin_ & 0x80)state = true;
 
 	return state;
 }
+
+}; //End component namespace.
+
+}; //End qc namespace.

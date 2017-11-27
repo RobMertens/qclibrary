@@ -1,7 +1,7 @@
 /******************************************************************************
  * Quadcopter-Library-v1
  * qc_esc_test.ino
- * 
+ *
  * This is a test file for the electronic speed controllers.
  *
  * @author:	Rob Mertens
@@ -11,7 +11,7 @@
 
 #include "timer8.h"
 #include "timer16.h"
-#include "ESC.h"
+#include "hardware/ESC.hpp"
 
 /******************************************************************************
  * DECLARATIONS
@@ -28,7 +28,7 @@ int main(void)
 	timer.initialize(t_mode::NORMAL, t_interrupt::OVF);
 	timer.setPrescaler(1);
 	esc.arm();
-	
+
 	//Run motors.
 	esc.writeSpeed(0.5f);
 	while(timer.getOverflows() >= 1000){;;}

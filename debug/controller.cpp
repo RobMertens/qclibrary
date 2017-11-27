@@ -9,9 +9,9 @@
  * @version:	1.1.1
  ******************************************************************************/
 
-#include "controller.h"
+#include "controller.hpp"
 
-using namespace vmath;
+using namespace qc_math_helpers;
 
 /*******************************************************************************
  * @brief Static vars.
@@ -19,11 +19,7 @@ using namespace vmath;
 const float controller::_DEADBAND = 0.04f;
 const float controller::_DEG2RAD = 3.1415f/180.0f;
 const float controller::_RAD2DEG = 180.0f/3.1415f;
-const vector::cptr controller::_UNITX(new vector(1.0f, 0.0f, 0.0f));
-const vector::cptr controller::_UNITY(new vector(0.0f, 1.0f, 0.0f));
-const vector::cptr controller::_UNITZ(new vector(0.0f, 0.0f, 1.0f));
-const vector::cptr controller::_MAXANGLE(new vector(0.785f, 0.785f, 6.283f));
-const quaternion::cptr controller::_REAL(new quaternion());
+const Vector::Cptr controller::_MAXANGLE(new Vector(0.785f, 0.785f, 6.283f));
 
 /*******************************************************************************
  * @brief Constructor for the controller-class.
@@ -45,7 +41,7 @@ controller::controller(const c_settings::layout& layout,
  * @brief
  * @param imu
  ******************************************************************************/
-void controller::assignImu(const MPU6050::cptr& imu)
+void controller::assignImu(const MPU6050::Cptr& imu)
 {
 	_imu = imu;
 }
@@ -55,7 +51,7 @@ void controller::assignImu(const MPU6050::cptr& imu)
  * @param rec
  * @param mode
  ******************************************************************************/
-void controller::assignReceiver(const RX::cptr& rec,
+void controller::assignReceiver(const RX::Cptr& rec,
 																const rx_settings::mode mode)
 {
 	_rec = rec;
@@ -68,9 +64,9 @@ void controller::assignReceiver(const RX::cptr& rec,
  * @param pidPitch
  * @param pidYaw
  ******************************************************************************/
-void controller::assignPids(const PID::cptr& pidRoll,
-														const PID::cptr& pidPitch,
-														const PID::cptr& pidYaw)
+void controller::assignPids(const PID::Cptr& pidRoll,
+														const PID::Cptr& pidPitch,
+														const PID::Cptr& pidYaw)
 {
 	_pidRoll = pidRoll;
 	_pidPitch = pidPitch;
@@ -84,10 +80,10 @@ void controller::assignPids(const PID::cptr& pidRoll,
  * @param esc3
  * @param esc4
  ******************************************************************************/
-void controller::assignDrives(const ESC::cptr& esc1,
-															const ESC::cptr& esc2,
-															const ESC::cptr& esc3,
-															const ESC::cptr& esc4)
+void controller::assignDrives(const ESC::Cptr& esc1,
+															const ESC::Cptr& esc2,
+															const ESC::Cptr& esc3,
+															const ESC::Cptr& esc4)
 {
 	_esc1 = esc1;
 	_esc2 = esc2;
@@ -142,7 +138,7 @@ void controller::update(void)
 	updateSafetyState(_inputs, _safety);
 
 	//(3) Update measurements.
-	quaternion::ptr world_R_local(new quaternion);
+	Quaternion::Ptr world_R_local(new Quaternion);
 	updateLocalData(_imu, _safety, _actual.localOmega, _actual.localAccel);
 	updateActualAttitude(_actual.localOmega, _actual.localAccel, _looptime,
 		_actual.local_R_world, _actual.local_R_world);
@@ -175,7 +171,7 @@ void controller::update(void)
  * @param rec The receiver.
  * @param[out] inputs The receiver input values.
  ******************************************************************************/
- void controller::updateReceiverData(const RX::cptr& rec,
+ void controller::updateReceiverData(const RX::Cptr& rec,
 	 																	 c_settings::inputs& inputs)
  {
 	 inputs.throttle = rec->getThrottleInput();
@@ -191,17 +187,17 @@ void controller::update(void)
  * @param[out]
  ******************************************************************************/
 void controller::updateDesiredAttitude(const c_settings::inputs& inputs,
-																			 quaternion::cptr& desired)
+																			 Quaternion::Cptr& desired)
 {
 	//Create temporary quaternions.
 	//TODO::to radians/degrees.
-	quaternion::ptr roll(new quaternion(_UNITY, inputs.roll));
-	quaternion::ptr pitch(new quaternion(_UNITX, inputs.pitch));
-	quaternion::ptr yaw(new quaternion(_UNITZ,inputs.yaw));
+	Quaternion::Ptr roll(new Quaternion(Vector::UnitX(), inputs.roll));
+	Quaternion::Ptr pitch(new Quaternion(Vector::UnitY(), inputs.pitch));
+	Quaternion::Ptr yaw(new Quaternion(Vector::UnitZ(),inputs.yaw));
 
-	//Desired quaternion.
-	cross(pitch, roll, desired);
-	cross(desired, yaw, desired);
+	//Desired Quaternion equals three consecutive RPY-rotations.
+	desired = hamilton(pitch, roll);
+	desired = hamilton(desired, yaw);
 }
 
 /*******************************************************************************
@@ -249,14 +245,14 @@ void controller::updateSafetyState(const c_settings::inputs& inputs,
  * @param[out] omega
  * @param[out] accel
  ******************************************************************************/
-void controller::updateLocalData(const MPU6050::cptr& imu,
+void controller::updateLocalData(const MPU6050::Cptr& imu,
 																 const c_settings::safety& safety,
-															 	 vector::cptr& omega,
-															 	 vector::cptr& accel)
+															 	 Vector::Cptr& omega,
+															 	 Vector::Cptr& accel)
 {
 	//Complementary filter old accel.
-	vector::cptr v(new vector);
-	vector::cptr w(new vector);
+	Vector::Cptr v(new Vector);
+	Vector::Cptr w(new Vector);
 	*v = *accel;
 
 	//Update gyroscope bias if not flying.
@@ -268,17 +264,17 @@ void controller::updateLocalData(const MPU6050::cptr& imu,
 	imu->updateAccelero(accel);
 
 	//Complementary filter new accel.
+	//TODO::this is wrong...
 	*w = *accel;
-	v->multiply(0.9f);
-	w->multiply(0.1f);
 
 	//Complementary filter for noise.
+	accel = v*0.9 + w*0.1;
+
 	//TODO::this is wrong... -> save complemetary filter accel.
-	sum(v, w, accel);
 }
 
 /*******************************************************************************
- * @brief Method for determining the attitude quaternion.
+ * @brief Method for determining the attitude Quaternion.
  *				Source: "Keeping a Good Attitude: A Quaternion-Based Orientation
  * 				Filter for IMU's and MARG's".
  * 				TODO::change to new vmath class.
@@ -287,16 +283,16 @@ void controller::updateLocalData(const MPU6050::cptr& imu,
  * @param input
  * @param[out] output
  ******************************************************************************/
-void controller::updateActualAttitude(const vector::cptr& localOmega,
-																			const vector::cptr& localAccel,
+void controller::updateActualAttitude(const Vector::Cptr& localOmega,
+																			const Vector::Cptr& localAccel,
 																			const float time,
-																			const quaternion::cptr& input,
-																			quaternion::cptr& output)
+																			const Quaternion::Cptr& input,
+																			Quaternion::Cptr& output)
 {
 	//Gyroscope integration estimation.
-	quaternion::ptr theta(new quaternion);
-	quaternion::ptr omega(new quaternion(localOmega, 3.1415f));
-	quaternion::ptr base(new quaternion);
+	Quaternion::Ptr theta(new Quaternion);
+	Quaternion::Ptr omega(new Quaternion(localOmega, 3.1415f));
+	Quaternion::Ptr base(new Quaternion);
 	cross(input, omega, theta);
 	theta->multiply(0.5*time);
 	sum(input, theta, base);
@@ -304,17 +300,17 @@ void controller::updateActualAttitude(const vector::cptr& localOmega,
 
 	//Accelero correction.
 	float alpha;
-	vector::ptr worldAccelEstimation(new vector);
-	quaternion::ptr conjugated(new quaternion);
+	Vector::Ptr worldAccelEstimation(new Vector);
+	Quaternion::Ptr conjugated(new Quaternion);
 	conjugate(input, conjugated);
 	rotate(conjugated, localAccel, worldAccelEstimation);
-	quaternion::ptr correction(new quaternion(
+	Quaternion::Ptr correction(new Quaternion(
 		 sqrt(0.5*(worldAccelEstimation->z() + 1.0f)),
 		-worldAccelEstimation->y()/sqrt(2.0f*(worldAccelEstimation->z() + 1.0f)),
 		 worldAccelEstimation->x()/sqrt(2.0f*(worldAccelEstimation->z() + 1.0f)),
 		 0.0f));
 	getMovement(localAccel, 1.02f, alpha);															// 2% determined by testing.
-	lerp(_REAL, correction, alpha, correction);
+	correction = lerp(Quaternion::UnitW(), correction, alpha);
 	//slerp(_REAL, correction, alpha, correction);
 	//TODO::fix slerp.
 	correction->normalize();
@@ -323,7 +319,7 @@ void controller::updateActualAttitude(const vector::cptr& localOmega,
 	//Not available on MPU6050.
 	//Extra sensor.
 
-	//Total quaternion.
+	//Total Quaternion.
 	cross(base, correction, output);
 	output->normalize();
 }
@@ -331,21 +327,21 @@ void controller::updateActualAttitude(const vector::cptr& localOmega,
 /*******************************************************************************
  * @brief Method for determining if the quadcopter is moving or not.
  * 				The total acceleration is compared w/ gravity.
- * 				DO NOT USE A GRAVITY CORRECTED ACCELERATION VECTOR.
+ * 				DO NOT USE A GRAVITY CORRECTED ACCELERATION Vector.
  * 				If acc/g-ratio equals greater than p[%]: dynamic flight.
  * 				Else: take-off/landing position or hoovering.
- * 				Sensitivity depends on p, different for bias/quaternion.
+ * 				Sensitivity depends on p, different for bias/Quaternion.
  * 				GRAVITY VALUE DEPENDENT ON SENSOR.
  * @param accel
  * @param p The user-defired comparision percentage, e.g.: 1,02.
  * @param[out] eta The linear value expressing movement.
  ******************************************************************************/
-bool controller::getMovement(const vector::cptr& accel,
+bool controller::getMovement(const Vector::Cptr& accel,
 														 const float p,
 													 	 float& eta)
 {
 	bool movement = false;
-	//TODO::determine gravity vector at stand-still, like gyro bias.
+	//TODO::determine gravity Vector at stand-still, like gyro bias.
 	eta = abs((accel->magnitude())/0.91f);
 	if(eta >= p)
 	{
@@ -359,9 +355,9 @@ bool controller::getMovement(const vector::cptr& accel,
  * @param localAccel
  * @param[out] worldAccel
  ******************************************************************************/
-void controller::updateWorldData(const vector::cptr& localAccel,
-																 const quaternion::cptr& world_R_local,
-																 vector::cptr& worldAccel)
+void controller::updateWorldData(const Vector::Cptr& localAccel,
+																 const Quaternion::Cptr& world_R_local,
+																 Vector::Cptr& worldAccel)
 {
 	//For now only acceleration is translated to world.
 	//TODO::for more vectors, this requires more sensors.
@@ -371,12 +367,12 @@ void controller::updateWorldData(const vector::cptr& localAccel,
 /*******************************************************************************
  *
  ******************************************************************************/
-void controller::updateOutputs(const PID::cptr& roll,
-															 const PID::cptr& pitch,
-															 const PID::cptr& yaw,
+void controller::updateOutputs(const PID::Cptr& roll,
+															 const PID::Cptr& pitch,
+															 const PID::Cptr& yaw,
 															 const inputs& inputs,
-															 const quaternion::cptr& actual,
-															 const quaternion::cptr& desired,
+															 const Quaternion::Cptr& actual,
+															 const Quaternion::Cptr& desired,
 															 const c_settings::layout& layout,
 															 c_settings::outputs& outputs)
 {
@@ -384,7 +380,7 @@ void controller::updateOutputs(const PID::cptr& roll,
 	//Calculate PID rotational velocity outputs [rad/s].
 	//Map to duty cycle [%].
 	//TODO::make the map adjustable.
-	vector::ptr feedback(new vector(
+	Vector::Ptr feedback(new Vector(
 		pitch->calculate(actual->x(), desired->x())*_MAXANGLE->x(),
 		roll->calculate(actual->y(), desired->y())*_MAXANGLE->y(),
 		yaw->calculate(actual->z(), desired->z())*_MAXANGLE->z()));
@@ -439,10 +435,10 @@ void controller::updateOutputs(const PID::cptr& roll,
  * @param[out]
  ******************************************************************************/
 void controller::driveMotors(const c_settings::outputs& outputs,
-														 ESC::cptr& esc1,
-													 	 ESC::cptr& esc2,
-													 	 ESC::cptr& esc3,
-													 	 ESC::cptr& esc4)
+														 ESC::Cptr& esc1,
+													 	 ESC::Cptr& esc2,
+													 	 ESC::Cptr& esc3,
+													 	 ESC::Cptr& esc4)
 {
 	esc1->writeSpeed(outputs.esc1);
 	esc2->writeSpeed(outputs.esc2);
@@ -453,9 +449,9 @@ void controller::driveMotors(const c_settings::outputs& outputs,
 /*******************************************************************************
  *
  ******************************************************************************/
-void controller::resetOutputs(PID::cptr& roll,
-															PID::cptr& pitch,
-															PID::cptr& yaw,
+void controller::resetOutputs(PID::Cptr& roll,
+															PID::Cptr& pitch,
+															PID::Cptr& yaw,
 															c_settings::outputs& outputs)
 {
 	roll->reset();

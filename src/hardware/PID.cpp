@@ -10,7 +10,13 @@
  * @version	1.1.1
  ******************************************************************************/
 
-#include "hardware/PID.h"
+#include "hardware/PID.hpp"
+
+namespace qc
+{
+
+namespace component
+{
 
 /*******************************************************************************
  * Constructor for the PID-controller.
@@ -30,12 +36,12 @@ PID::PID(void)
  * @param minLimit The minimum output limit.
  * @param maxLimit The maximum output limit.
  ******************************************************************************/
-PID::PID(const float kp,
-				 const float ki,
-				 const float kd,
-				 const float maxLimit,
-				 const float minLimit,
-				 const pid_settings::direction direction)
+PID::PID(const double kp,
+				 const double ki,
+				 const double kd,
+				 const double maxLimit,
+				 const double minLimit,
+				 const direction direction)
 {
 	_kp = kp;
 	_ki = ki;
@@ -55,8 +61,8 @@ PID::PID(const float kp,
  * @param minLimit The minimum output limit.
  * @param maxLimit The maximum output limit.
  ******************************************************************************/
-void PID::setOutputLimits(const float maxLimit,
-													const float minLimit)
+void PID::setOutputLimits(const double maxLimit,
+													const double minLimit)
 {
 	_maxLimit = maxLimit;
 	_minLimit = minLimit;
@@ -69,9 +75,9 @@ void PID::setOutputLimits(const float maxLimit,
  * @param ki The integral gain.
  * @param kd The derivative gain.
  ******************************************************************************/
-void PID::setGainValues(const float kp,
-												const float ki,
-												const float kd)
+void PID::setGainValues(const double kp,
+												const double ki,
+												const double kd)
 {
 	_kp = kp;
 	_ki = ki;
@@ -82,7 +88,7 @@ void PID::setGainValues(const float kp,
  * @brief Method for changing the direction of the controller.
  * @param direction The direction of the controller (FORWARD/REVERSE).
  ******************************************************************************/
-void PID::setDirection(const pid_settings::direction direction)
+void PID::setDirection(const direction direction)
 {
 	_direction = direction;
 }
@@ -101,13 +107,13 @@ void PID::reset(void)
  * @param input The current input value.
  * @param desired The desired input value.
  ******************************************************************************/
-float PID::calculate(const float input,
-										 const float desired)
+double PID::calculate(const double input,
+										 const double desired)
 {
 	_input = input;
 	_desired = desired;
 
-	float error = _input - _desired;
+	double error = _input - _desired;
 	_iterm += _ki*error;
 
 	_output = _kp*error + _iterm*error + _kd*(error - _lastError);
@@ -123,7 +129,7 @@ float PID::calculate(const float input,
  * @brief Method for getting the minimum output limit.
  * @return _minLimit The minimum output limit.
  ******************************************************************************/
-float PID::getMinOutputLimit(void)
+double PID::getMinOutputLimit(void)
 {
 	return _minLimit;
 }
@@ -132,7 +138,7 @@ float PID::getMinOutputLimit(void)
  * @brief Method for getting the maximum output limit.
  * @return _maxLimit The maimum output limit.
  ******************************************************************************/
-float PID::getMaxOutputLimit(void)
+double PID::getMaxOutputLimit(void)
 {
 	return _maxLimit;
 }
@@ -141,7 +147,7 @@ float PID::getMaxOutputLimit(void)
  * @brief Method for getting the proportional gain value.
  * @return _kp The proportional gain value.
  ******************************************************************************/
-float PID::getProportionalGain(void)
+double PID::getProportionalGain(void)
 {
 	return _kp;
 }
@@ -150,7 +156,7 @@ float PID::getProportionalGain(void)
  * @brief Method for getting the integral gain value.
  * @return _ki The integral gain value.
  ******************************************************************************/
-float PID::getIntegralGain(void)
+double PID::getIntegralGain(void)
 {
 	return _ki;
 }
@@ -159,7 +165,7 @@ float PID::getIntegralGain(void)
  * @brief Method for getting the derivative gain value.
  * @return _kd The derivative gain value.
  ******************************************************************************/
-float PID::getDifferentialGain(void)
+double PID::getDifferentialGain(void)
 {
 	return _kd;
 }
@@ -168,7 +174,11 @@ float PID::getDifferentialGain(void)
  * @brief Method for getting the direction of the controller.
  * @return _direction The direction of the controller.
  ******************************************************************************/
-pid_settings::direction PID::getDirection(void)
+direction PID::getDirection(void)
 {
 	return _direction;
 }
+
+}; //End namespace component.
+
+}; //End namespace qc.

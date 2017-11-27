@@ -27,140 +27,143 @@
  * TODO::variable frequency and clock speed.
  *
  * @author: 	Rob Mertens
- * @date:	07/05/2017
+ * @date:			07/05/2017
  * @version: 	1.1.1
  ******************************************************************************/
 
-#include "hardware/ESC.h"
+#include "hardware/ESC.hpp"
 
-/*******************************************************************************
- * @brief Constructor for the ESC-class.
- * 				By making an object with this constructor all local variables are
- * 				set together with the avr-timer. This constructor is compatible for
- *				most ESC's which have a DEFAULT microsecond PMW-range of minimum
- *				1000us (motors off)	and maximum 2000us (motors at maximum throttle)
- * 				or user specified.
- * @param: alias
- * @param: channel
- * @param: periodMicrosecond The period length [µs] (DEFAULT=4000).
- * @param: maxMicrosecond The full throttle pulse length [µs] (DEFAULT=2000).
- * @param: minMicrosecond The zero throttle pulse length [µs] (DEFAULT=1000).
- ******************************************************************************/
-ESC::ESC(const t_settings::alias& alias,
-				 const t_settings::channel& channel,
-				 const uint16_t periodMicrosecond,
-				 const uint16_t maxMicrosecond,
-				 const uint16_t minMicrosecond)
+namespace qc
+{
+
+namespace component
+{
+
+/** Constructors/destructors/overloading **************************************/
+ESC::ESC(const avr::Timer16::Ptr& tptr, const avr::t_channel& channel,
+	const uint16_t periodMicrosecond, const uint16_t maxMicrosecond,
+	const uint16_t minMicrosecond)
 {
 	// ESC Timer.
-	_t = timer16(alias);							// TIMER16.
+	tptr_ = tptr;
 
 	// IO.
 	assign(channel);
 
-	_maxEscCycle = (double)(maxMicrosecond/periodMicrosecond);		// Is not 1.0f!
-	_minEscCycle = (double)(minMicrosecond/periodMicrosecond);		// Is not 0.0f!
+	maxEscCycle_ = (double)(maxMicrosecond/periodMicrosecond);		// Is not 1.0f!
+	minEscCycle_ = (double)(minMicrosecond/periodMicrosecond);		// Is not 0.0f!
 }
 
-/*******************************************************************************
- * @brief Method for assigning a timer and PWM channel to an ESC. This should match
- * 				your hardware setup.
- * @param: alias The 16-bit timer alias.
- * @param: channel The 16-bit timer channel B or C.
- * @return: ret A return value ? 0 for successful : -1 for unsuccessful.
- ******************************************************************************/
-int8_t ESC::assign(const t_settings::channel& channel)
+ESC::ESC(const ESC& other)
+{
+	if(this != &other)
+  {
+		//TODO::factory pattern with copy-constructor.
+		/*avr::Timer::Ptr tptr(new avr::Timer16(*other.tptr_));
+		delete tptr_;
+		tptr_ = tptr;*/
+
+		maxEscCycle_ = other.maxEscCycle_;
+		minEscCycle_ = other.minEscCycle_;
+	}
+}
+
+ESC::~ESC(void)
+{
+	delete tptr_;
+}
+
+ESC& ESC::operator=(const ESC& other)
+{
+	if(this != &other)
+  {
+		//TODO::factory pattern with copy-constructor.
+		/*avr::Timer::Ptr tptr(new avr::Timer16(*other.tptr_));
+		delete tptr_;
+		tptr_ = tptr;*/
+
+		maxEscCycle_ = other.maxEscCycle_;
+		minEscCycle_ = other.minEscCycle_;
+	}
+	return (*this);
+}
+
+/** ESC setting functions *****************************************************/
+void ESC::arm(const uint16_t prescale,
+							const uint16_t top)
+{
+	// TIMER16 Init PWM-mode.
+	// t_tck = (1 * prescale) / 16M = 0,0625 µs.
+	// t_max = 6,3e^(-8) * (2^16 - 1) = 4096 µs.
+	// t_ocr = (4000 µs / 0,0625 µs) - 1 = 63999 (0xF9FF) ticks.
+	tptr_->initialize(avr::t_mode::PWM_F, avr::t_channel::BC_TOP,
+		avr::t_inverted::NORMAL);
+	tptr_->setPrescaler(prescale);
+
+	tptr_->setCompareValueA(top);
+
+	writeMinSpeed();
+
+	tptr_->reset();
+}
+
+void ESC::unarm(void)
+{
+	writeMinSpeed();
+}
+
+/** ESC runtime functions *****************************************************/
+int8_t ESC::writeSpeed(const double dc)
 {
 	int8_t ret = 0;
 
-	if(channel==t_settings::channel::B)setDutyCycle = &timer16::setDutyCycleB;
-	else if(channel==t_settings::channel::C)setDutyCycle = &timer16::setDutyCycleC;
+	double escc = dc2Escc(dc);
+	ret = (tptr_->*setDutyCycle)(escc);
+
+	return ret;
+}
+
+int8_t ESC::writeMaxSpeed(void)
+{
+	int8_t ret = 0;
+
+	ret = writeSpeed(dc2Escc(maxEscCycle_));
+
+	return ret;
+}
+
+int8_t ESC::writeMinSpeed(void)
+{
+	int8_t ret = 0;
+
+	ret = writeSpeed(dc2Escc(minEscCycle_));
+
+	return ret;
+}
+
+/** Helper functions **********************************************************/
+int8_t ESC::assign(const avr::t_channel& channel)
+{
+	int8_t ret = 0;
+
+	if(channel==avr::t_channel::B)setDutyCycle = &avr::Timer16::setDutyCycleB;
+	else if(channel==avr::t_channel::C)setDutyCycle = &avr::Timer16::setDutyCycleC;
 	else{ret=-1;}
 
 	return ret;
 }
 
-/*******************************************************************************
- * @brief Method for initializing the timer-settings.
- * 				The default is TIMER1 with no prescaler and timer overflow interrupt.
- * @param: prescale The prescale mask value (DEFAULT=0x01).
- ******************************************************************************/
-void ESC::arm(const uint16_t prescale,
-							const uint16_t top)
+double ESC::dc2Escc(const double dutyCycle)
 {
-	_t.initialize(t_settings::mode::PWM_F,
-								t_settings::channel::BC_TOP,
-								t_settings::inverted::NORMAL);																	// TIMER16 Init PWM-mode.
-	_t.setPrescaler(prescale);																										// t_tck = (1 * prescale) / 16M = 0,0625 µs.
-																																								// t_max = 6,3e^(-8) * (2^16 - 1) = 4096 µs.
-	_t.setCompareValueA(top);																											// t_ocr = (4000 µs / 0,0625 µs) - 1 = 63999 (0xF9FF) ticks.
+	double esc;
 
-	writeMinSpeed();
-
-	_t.reset();
-}
-
-/*******************************************************************************
- * @brief TODO::safely shut down the motors.
- ******************************************************************************/
-void ESC::unarm(void)
-{
-	;;
-}
-
-/*******************************************************************************
- * @brief Method for writing variable PWM-pulses in length to the ESC's.
- * @param dc The duty cycle for the ESC in microseconds.
- * @return ret A return value for debugging ? 0 successful : -1 unsuccessful.
- ******************************************************************************/
-int8_t ESC::writeSpeed(const float dc)
-{
-	int8_t ret = 0;
-	
-	float escc = dc2Escc(dc);
-	ret = (_t.*setDutyCycle)(escc);
-
-	return ret;
-}
-
-/*******************************************************************************
- * @brief Method for writing HIGH PWM-pulses to the ESC's.
- * @return ret A return value for debugging ? 0 successful : -1 unsuccessful.
- ******************************************************************************/
-int8_t ESC::writeMaxSpeed(void)
-{
-	int8_t ret = 0;
-
-	ret = writeSpeed(dc2Escc(_maxEscCycle));
-
-	return ret;
-}
-
-/*******************************************************************************
- * @brief Method for writing LOW PWM-pulses to the ESC's.
- * @return ret A return value for debugging ? 0 successful : -1 unsuccessful.
- ******************************************************************************/
-int8_t ESC::writeMinSpeed(void)
-{
-	int8_t ret = 0;
-
-	ret = writeSpeed(dc2Escc(_minEscCycle));
-
-	return ret;
-}
-
-/*******************************************************************************
- * @brief Method for writing LOW PWM-pulses to the ESC's.
- * @param
- * @return
- ******************************************************************************/
-float ESC::dc2Escc(const float dutyCycle)
-{
-	float esc;
-
-	if(dutyCycle >= 1.0f)esc=_maxEscCycle;
-	else if(dutyCycle <= 0.0f)esc=_minEscCycle;
-	else{esc = (_maxEscCycle - _minEscCycle)*dutyCycle + _minEscCycle;}
+	if(dutyCycle >= 1.0f)esc=maxEscCycle_;
+	else if(dutyCycle <= 0.0f)esc=minEscCycle_;
+	else{esc = (maxEscCycle_ - minEscCycle_)*dutyCycle + minEscCycle_;}
 
 	return esc;
 }
+
+}; //End namespace compoment.
+
+}; //End namespace qc.
