@@ -43,7 +43,7 @@ class MPU6050
 		/**
 		 * @brief
 		 */
-		typedef MPU6050 * const Cptr;
+		typedef MPU6050 * const CPtr;
 
 		/** Constructors/destructors/overloads ************************************/
 		/**
@@ -210,12 +210,12 @@ class MPU6050
 		/**
 		 * @brief TODO::should be determined with a calibration method.
 		 */
-		static double gyroConversionRate_ = 3754.94;
+		double gyroConversionRate_ = 3754.94;
 
 		/**
 		 * @brief TODO::should be determined with a calibration method.
 		 */
-		static double accConversionRate_ = 16384.0;
+		double accConversionRate_ = 16384.0;
 
 		/** Register locations ****************************************************/
 		/**
